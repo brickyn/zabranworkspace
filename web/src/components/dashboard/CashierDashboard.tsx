@@ -137,7 +137,7 @@ export default function CashierDashboard() {
                 <BarChart data={data.history}>
                   <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `Rp ${value.toLocaleString('id-ID')}`} />
-                  <RechartsTooltip cursor={{fill: 'transparent'}} formatter={(value: number) => [formatRupiah(value), 'Omzet']} />
+                  <RechartsTooltip cursor={{fill: 'transparent'}} formatter={(value: any) => [formatRupiah(value), 'Omzet']} />
                   <Bar dataKey="omzet" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
