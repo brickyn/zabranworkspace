@@ -815,7 +815,7 @@ export default function POSPage() {
                 <PauseCircle className="w-5 h-5" /> Hold <span className="text-xs opacity-60">(F3)</span>
               </button>
               <button
-                onClick={handleCheckout}
+                onClick={() => handleCheckout()}
                 disabled={items.length === 0 || isProcessing}
                 className="flex-[2] py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-bold shadow-lg shadow-blue-500/25 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
