@@ -23,6 +23,8 @@ export declare const createTransactionSchema: z.ZodObject<{
         method: z.ZodString;
         amount: z.ZodNumber;
     }, z.core.$strip>>>>;
+    leadSource: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    closingType: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     overrideToken: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
 //# sourceMappingURL=transaction.validation.d.ts.map

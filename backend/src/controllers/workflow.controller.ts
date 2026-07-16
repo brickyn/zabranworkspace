@@ -25,7 +25,7 @@ export const addState = catchAsync(async (req: Request, res: Response) => {
   const { name, type } = req.body;
   const state = await prisma.workflowState.create({
     data: {
-      workflowId,
+      workflowId: String(workflowId),
       name,
       type
     }
@@ -39,7 +39,7 @@ export const addTransition = catchAsync(async (req: Request, res: Response) => {
   
   const transition = await prisma.workflowTransition.create({
     data: {
-      workflowId,
+      workflowId: String(workflowId),
       fromStateId,
       toStateId,
       conditions,
@@ -54,7 +54,7 @@ export const addTransition = catchAsync(async (req: Request, res: Response) => {
 export const getWorkflowHistory = catchAsync(async (req: Request, res: Response) => {
   const { instanceId } = req.params;
   const history = await prisma.workflowHistory.findMany({
-    where: { instanceId },
+    where: { instanceId: String(instanceId) },
     orderBy: { createdAt: 'desc' },
     include: {
       instance: {
@@ -69,7 +69,7 @@ export const getWorkflowHistory = catchAsync(async (req: Request, res: Response)
 });
 
 export const getAvailableTransitions = catchAsync(async (req: Request, res: Response) => {
-  const { instanceId } = req.params;
+  const instanceId = req.params.instanceId as string;
   const user = (req as any).user;
   
   const transitions = await WorkflowEngine.getAvailableTransitions(
@@ -83,7 +83,7 @@ export const getAvailableTransitions = catchAsync(async (req: Request, res: Resp
 });
 
 export const executeTransition = catchAsync(async (req: Request, res: Response) => {
-  const { instanceId } = req.params;
+  const instanceId = req.params.instanceId as string;
   const { toStateName, comment, contextUpdates } = req.body;
   const user = (req as any).user;
 

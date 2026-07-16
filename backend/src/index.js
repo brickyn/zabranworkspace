@@ -42,7 +42,14 @@ const system_routes_1 = __importDefault(require("./routes/system.routes"));
 const kpi_routes_1 = __importDefault(require("./routes/kpi.routes"));
 const scalev_routes_1 = __importDefault(require("./routes/scalev.routes"));
 const delegation_routes_1 = __importDefault(require("./routes/delegation.routes"));
+const workflow_routes_1 = __importDefault(require("./routes/workflow.routes"));
+const rule_routes_1 = __importDefault(require("./routes/rule.routes"));
+const job_routes_1 = __importDefault(require("./routes/job.routes"));
+const metadata_routes_1 = __importDefault(require("./routes/metadata.routes"));
+const pos_routes_1 = __importDefault(require("./routes/pos.routes"));
 const websocket_1 = require("./utils/websocket");
+const WorkflowSubscriber_1 = require("./subscribers/WorkflowSubscriber");
+const JobWorker_1 = require("./workers/JobWorker");
 dotenv_1.default.config();
 // ─── CRITICAL: Crash on startup if JWT secret is not set ─────────────────────
 if (!process.env.JWT_SECRET) {
@@ -112,8 +119,13 @@ app.use('/api/v1/settings', setting_routes_1.default);
 app.use('/api/v1/search', search_routes_1.default);
 app.use('/api/v1/meta', meta_routes_1.default);
 app.use('/api/v1/system', system_routes_1.default);
+app.use('/api/v1/workflows', workflow_routes_1.default);
+app.use('/api/v1/rules', rule_routes_1.default);
+app.use('/api/v1/jobs', job_routes_1.default);
+app.use('/api/v1/metadata', metadata_routes_1.default);
 app.use('/api/v1/kpi', kpi_routes_1.default);
 app.use('/api/v1/scalev', scalev_routes_1.default);
+app.use('/api/v1/pos', pos_routes_1.default);
 app.use('/api/v1/data-import', dataImport_routes_1.default);
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler_1.errorHandler);
@@ -127,9 +139,26 @@ const server = app.listen(PORT, () => {
 });
 // Initialize WebSockets
 (0, websocket_1.initWebSocket)(server);
+// Initialize Event Bus Subscribers
+(0, WorkflowSubscriber_1.registerWorkflowSubscribers)();
+// Initialize Job Worker
+JobWorker_1.JobWorker.registerHandler('PDF_GENERATION', async (job) => {
+    const payload = job.payload;
+    logger_1.default.info(`Generating PDF for ${payload?.reportId}...`);
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate 2s work
+    return { url: `https://storage.zabran.com/reports/${payload?.reportId}.pdf` };
+});
+JobWorker_1.JobWorker.registerHandler('EMAIL_DELIVERY', async (job) => {
+    const payload = job.payload;
+    logger_1.default.info(`Sending email to ${payload?.to}...`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { success: true };
+});
+JobWorker_1.JobWorker.start();
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
 const gracefulShutdown = async () => {
     logger_1.default.info('Shutting down gracefully...');
+    JobWorker_1.JobWorker.stop(); // Stop pulling new jobs
     server.close(() => {
         logger_1.default.info('HTTP server closed.');
     });

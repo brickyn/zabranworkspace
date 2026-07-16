@@ -6,7 +6,8 @@ import { catchAsync } from '../utils/catchAsync';
 const prisma = new PrismaClient();
 
 export const getJobs = catchAsync(async (req: Request, res: Response) => {
-  const { status, type } = req.query;
+  const status = req.query.status as string | undefined;
+  const type = req.query.type as string | undefined;
   const where: any = {};
   if (status) where.status = String(status);
   if (type) where.type = String(type);
@@ -21,13 +22,13 @@ export const getJobs = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const retryJob = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const job = await JobQueue.retryFailedJob(id);
   res.json({ message: 'Job queued for retry', job });
 });
 
 export const cancelJob = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   await JobQueue.cancelJob(id);
   res.json({ message: 'Job cancelled' });
 });

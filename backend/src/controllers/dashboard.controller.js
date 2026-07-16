@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDashboardMetrics = void 0;
+exports.getCashierDashboard = exports.getDashboardMetrics = void 0;
 const prisma_1 = __importDefault(require("../prisma"));
 const getDashboardMetrics = async (req, res) => {
     try {
@@ -175,4 +175,68 @@ const getDashboardMetrics = async (req, res) => {
     }
 };
 exports.getDashboardMetrics = getDashboardMetrics;
+const getCashierDashboard = async (req, res) => {
+    try {
+        const cashierId = req.user?.id;
+        if (!cashierId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+        // 7 days ago
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+        const transactions = await prisma_1.default.transaction.findMany({
+            where: {
+                cashierId,
+                status: 'completed',
+                createdAt: { gte: sevenDaysAgo }
+            },
+            select: {
+                id: true,
+                totalAmount: true,
+                createdAt: true
+            }
+        });
+        let todaySales = 0;
+        let todayTransactions = 0;
+        const history = [];
+        // Initialize 7 days history
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(sevenDaysAgo);
+            d.setDate(d.getDate() + i);
+            history.push({
+                date: d.toISOString().split('T')[0],
+                omzet: 0,
+                transactions: 0
+            });
+        }
+        const todayStr = new Date().toISOString().split('T')[0];
+        transactions.forEach(tx => {
+            const txDateStr = tx.createdAt.toISOString().split('T')[0];
+            if (txDateStr === todayStr) {
+                todaySales += tx.totalAmount;
+                todayTransactions++;
+            }
+            const historyItem = history.find(h => h.date === txDateStr);
+            if (historyItem) {
+                historyItem.omzet += tx.totalAmount;
+                historyItem.transactions++;
+            }
+        });
+        res.json({
+            success: true,
+            data: {
+                todaySales,
+                todayTransactions,
+                history
+            }
+        });
+    }
+    catch (error) {
+        console.error('[CASHIER DASHBOARD ERROR]', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch cashier dashboard' });
+    }
+};
+exports.getCashierDashboard = getCashierDashboard;
 //# sourceMappingURL=dashboard.controller.js.map

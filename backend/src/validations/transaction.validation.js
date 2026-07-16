@@ -26,6 +26,8 @@ exports.createTransactionSchema = zod_1.z.object({
         method: zod_1.z.string(),
         amount: zod_1.z.number()
     })).optional().nullable(),
+    leadSource: zod_1.z.string().optional().nullable(),
+    closingType: zod_1.z.string().optional().nullable(),
     overrideToken: zod_1.z.string().optional().nullable()
 });
 //# sourceMappingURL=transaction.validation.js.map

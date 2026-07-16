@@ -153,12 +153,14 @@ registerWorkflowSubscribers();
 
 // Initialize Job Worker
 JobWorker.registerHandler('PDF_GENERATION', async (job) => {
-  logger.info(`Generating PDF for ${job.payload.reportId}...`);
+  const payload = job.payload as any;
+  logger.info(`Generating PDF for ${payload?.reportId}...`);
   await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate 2s work
-  return { url: `https://storage.zabran.com/reports/${job.payload.reportId}.pdf` };
+  return { url: `https://storage.zabran.com/reports/${payload?.reportId}.pdf` };
 });
 JobWorker.registerHandler('EMAIL_DELIVERY', async (job) => {
-  logger.info(`Sending email to ${job.payload.to}...`);
+  const payload = job.payload as any;
+  logger.info(`Sending email to ${payload?.to}...`);
   await new Promise(resolve => setTimeout(resolve, 1000));
   return { success: true };
 });

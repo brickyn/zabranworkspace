@@ -24,7 +24,7 @@ export const createField = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const updateField = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const data = req.body;
   const field = await prisma.customFieldDefinition.update({ where: { id }, data });
   
@@ -40,7 +40,8 @@ export const updateField = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getFields = catchAsync(async (req: Request, res: Response) => {
-  const { entityType, module } = req.query;
+  const entityType = req.query.entityType as string | undefined;
+  const module = req.query.module as string | undefined;
   const where: any = {};
   if (entityType) where.entityType = String(entityType);
   if (module) where.module = String(module);
@@ -55,13 +56,15 @@ export const getFields = catchAsync(async (req: Request, res: Response) => {
 // ─── DATA VALUES ───
 
 export const getEntityData = catchAsync(async (req: Request, res: Response) => {
-  const { entityType, entityId } = req.params;
+  const entityType = req.params.entityType as string;
+  const entityId = req.params.entityId as string;
   const data = await MetadataEngine.getData(entityType, entityId);
   res.json(data);
 });
 
 export const saveEntityData = catchAsync(async (req: Request, res: Response) => {
-  const { entityType, entityId } = req.params;
+  const entityType = req.params.entityType as string;
+  const entityId = req.params.entityId as string;
   const payload = req.body; // { warranty_months: 12, ... }
   
   const saved = await MetadataEngine.validateAndSaveData(entityType, entityId, payload);

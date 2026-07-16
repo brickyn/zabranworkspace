@@ -29,7 +29,7 @@ export const createRule = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const updateRule = catchAsync(async (req: Request, res: Response) => {
-  const { ruleId } = req.params;
+  const ruleId = req.params.ruleId as string;
   const data = req.body;
   
   const rule = await prisma.businessRule.update({
@@ -41,7 +41,8 @@ export const updateRule = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getRules = catchAsync(async (req: Request, res: Response) => {
-  const { module, category } = req.query;
+  const module = req.query.module as string | undefined;
+  const category = req.query.category as string | undefined;
   const where: any = {};
   if (module) where.module = String(module);
   if (category) where.category = String(category);
@@ -55,7 +56,8 @@ export const getRules = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getEvaluationHistory = catchAsync(async (req: Request, res: Response) => {
-  const { ruleId, entityId } = req.query;
+  const ruleId = req.query.ruleId as string | undefined;
+  const entityId = req.query.entityId as string | undefined;
   const where: any = {};
   if (ruleId) where.ruleId = String(ruleId);
   if (entityId) where.entityId = String(entityId);

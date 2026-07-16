@@ -155,6 +155,8 @@ const createTransaction = async (req, res) => {
                     splitPayments: validatedData.splitPayments || undefined,
                     promoCampaignId: validatedData.promoCampaignId || undefined,
                     notes: validatedData.notes || undefined,
+                    leadSource: validatedData.leadSource || undefined,
+                    closingType: validatedData.closingType || undefined,
                     status: 'completed',
                     items: {
                         create: validatedData.items.map(item => ({
