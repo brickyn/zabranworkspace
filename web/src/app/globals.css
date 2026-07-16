@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* LIGHT MODE */
+    --background: #F2F2F7; /* Apple style light grey background */
+    --foreground: #1c1c1e;
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.8);
+    --glass-shadow: rgba(0, 0, 0, 0.04);
+    
+    --card-bg: rgba(255, 255, 255, 0.8);
+    --card-border: rgba(255, 255, 255, 0.6);
+    
+    --nav-bg: rgba(255, 255, 255, 0.7);
+    --nav-border: rgba(255, 255, 255, 0.5);
+    --nav-hover: rgba(0, 0, 0, 0.04);
+    --text-muted: #8e8e93;
+  }
+
+  .dark {
+    /* DARK MODE */
+    --background: #000000; /* Deep Apple black */
+    --foreground: #F2F2F7;
+    --glass-bg: rgba(28, 28, 30, 0.6); /* Apple dark system gray */
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: rgba(0, 0, 0, 0.3);
+    
+    --card-bg: rgba(44, 44, 46, 0.5);
+    --card-border: rgba(255, 255, 255, 0.08);
+    
+    --nav-bg: rgba(28, 28, 30, 0.7);
+    --nav-border: rgba(255, 255, 255, 0.1);
+    --nav-hover: rgba(255, 255, 255, 0.08);
+    --text-muted: #98989d;
+  }
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-outfit), var(--font-inter), sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
