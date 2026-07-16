@@ -56,7 +56,7 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'http://localhost:3000';
+const ALLOWED_ORIGIN = '*';
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({

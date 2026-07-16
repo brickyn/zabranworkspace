@@ -1,11 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const prisma = new client_1.PrismaClient();
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+const prisma = new PrismaClient();
 async function main() {
     console.log('Starting seed...');
     // 1. Create Branches
@@ -29,7 +24,7 @@ async function main() {
     });
     console.log('Branches created');
     // 2. Create Users
-    const passwordHash = await bcryptjs_1.default.hash('password123', 10);
+    const passwordHash = await bcrypt.hash('password123', 10);
     const superAdmin = await prisma.user.upsert({
         where: { email: 'admin@zabran.com' },
         update: {},
@@ -215,4 +210,3 @@ main()
     .finally(async () => {
     await prisma.$disconnect();
 });
-//# sourceMappingURL=seed.js.map
