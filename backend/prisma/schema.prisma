@@ -1,0 +1,1076 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id          String    @id // No longer defaults to UUID, manually inputted
+  name        String
+  brand       String? // Nama Brand
+  isWarehouse Boolean   @default(false)
+  address     String?
+  phone       String?
+  logoUrl     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime? // Soft delete
+
+  users              User[]
+  products           Product[]
+  transactions       Transaction[]
+  purchaseOrders     PurchaseOrder[]
+  salesTargets       SalesTarget[]
+  expenses           Expense[]
+  serviceJobs        ServiceJob[]
+  rentals            Rental[]
+  stockTransfersFrom StockTransfer[]   @relation("FromBranch")
+  stockTransfersTo   StockTransfer[]   @relation("ToBranch")
+  transferOrdersFrom TransferOrder[]   @relation("FromBranchTO")
+  transferOrdersTo   TransferOrder[]   @relation("ToBranchTO")
+  stockOpnames       StockOpname[]
+  cashManagements    CashManagement[]
+  promoCampaigns     PromoCampaign[]
+  crmDailyReviews    CRMDailyReview[]
+  crmMysteryGuests   CRMMysteryGuest[]
+  crmCustomerData    CRMCustomerData[]
+  EndOfDay           EndOfDay[]
+
+  @@map("branches")
+}
+
+model User {
+  id          String  @id // Custom format: numerik seperti "100234"
+  email       String  @unique
+  password    String
+  name        String
+  role        String  @default("User") // Legacy - to be deprecated
+  roleId      String?
+  userRole    Role?   @relation(fields: [roleId], references: [id])
+  jobTitle    String? // Actual job title e.g. "Kepala Toko", "Finance"
+  division    String? // Associated division e.g. "Marketing Pusat"
+  permissions Json? // Deprecated - use RolePermissions
+
+  branchId    String?
+  branch      Branch?   @relation(fields: [branchId], references: [id])
+  photoUrl    String?
+  preferences String?
+  isActive    Boolean   @default(true) // Soft-disable without deleting
+  lastLoginAt DateTime? // Track last login for security audit
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  logs         Log[]
+  transactions Transaction[] @relation("CashierTransactions")
+
+  roleDelegationsFrom RoleDelegation[] @relation("Delegator")
+  roleDelegationsTo   RoleDelegation[] @relation("Delegatee")
+  EndOfDay            EndOfDay[]
+
+  @@index([role])
+  @@index([roleId])
+  @@index([branchId])
+  @@map("users")
+}
+
+model Role {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isSystem    Boolean @default(false)
+
+  users       User[]
+  permissions RolePermission[]
+  delegations RoleDelegation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  action      String  @unique
+  description String?
+  module      String?
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RoleDelegation {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  roleId     String
+  validUntil DateTime
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  fromUser User @relation("Delegator", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("Delegatee", fields: [toUserId], references: [id], onDelete: Cascade)
+  role     Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId])
+  @@index([validUntil])
+  @@map("role_delegations")
+}
+
+model Product {
+  id            String  @id // Custom format: SUPA-260705-001 (Merepresentasikan unit SN fisik)
+  name          String
+  brand         String?
+  model         String?
+  processor     String?
+  ram           String?
+  storage       String?
+  gpu           String?
+  screenSize    String?
+  condition     String?
+  grade         String?
+  completeness  String?
+  description   String?
+  buyPrice      Float
+  sellPrice     Float
+  promoPrice    Float?
+  status        String  @default("Available") // Available, Reserved, Sold, Return, Service, Damaged, QC_Pending, Return_Supplier
+  rackLocation  String? // Warehouse/Store rack location (e.g. A1-Top)
+  imageUrl      String?
+  category      String?
+  serialNumber  String? // SN as string, optional since accessories might not have one
+  minus         String? // Any defect notes
+  durasiGaransi Int? // Warranty duration
+  satuanGaransi String? // Hari/Minggu/Bulan/Tahun
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete — never hard-delete a product that has transaction history
+
+  transactionItems TransactionItem[]
+  rentals          Rental[]
+  stockTransfers   StockTransfer[]
+  stockOpnameItems StockOpnameItem[]
+  promoCampaigns   PromoCampaign[]   @relation("FreeAccessory")
+
+  @@index([branchId])
+  @@index([status])
+  @@index([branchId, status]) // Most common composite query in POS and inventory
+  @@index([category])
+  @@index([createdAt])
+  @@map("products")
+}
+
+model Customer {
+  id           String        @id @default(uuid())
+  name         String
+  phone        String?       @unique // Prevent duplicate customer records
+  email        String?
+  address      String? // Added: useful for delivery/B2B
+  points       Int           @default(0)
+  totalSpent   Float         @default(0) // Denormalized for quick CRM access
+  deletedAt    DateTime? // Soft delete
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+
+  @@index([phone])
+  @@map("customers")
+}
+
+model Transaction {
+  id         String    @id // Custom format: b-001-260705-001
+  branchId   String
+  branch     Branch    @relation(fields: [branchId], references: [id])
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  cashierId String?
+  cashier   User?   @relation("CashierTransactions", fields: [cashierId], references: [id])
+
+  totalAmount     Float
+  discount        Float     @default(0)
+  status          String    @default("completed") // pending, completed, cancelled, void, returned
+  paymentMethod   String    @default("Cash") // Cash, Transfer, EDC, E-commerce
+  splitPayments   Json? // To store multiple payment methods { method, amount }[]
+  notes           String? // Keterangan tambahan transaksi
+  promoCampaignId String? // ID promo jika menggunakan promo
+  voidReason      String?
+  voidBy          String?
+  returnReason    String?
+  returnedAt      DateTime? // Explicit timestamp for return event
+
+  leadSource  String? // Instagram, Tiktok, Facebook, Google, Relasi, Cold Market, Hot Market, Ads/Iklan
+  closingType String? // Offline, Online
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items TransactionItem[]
+
+  @@index([branchId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([branchId, status])
+  @@index([branchId, createdAt])
+  @@index([customerId])
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            String      @id @default(uuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  sellingPrice  Float
+  discount      Float       @default(0)
+  subtotal      Float
+
+  warranty Warranty?
+
+  @@index([transactionId])
+  @@index([productId])
+  @@map("transaction_items")
+}
+
+// ─── CRM Models ───
+
+model CRMActivity {
+  id           String   @id @default(uuid())
+  type         String
+  description  String
+  date         DateTime
+  responseTime Float? // in minutes
+  picName      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([date])
+}
+
+model CRMDailyReview {
+  id           String   @id @default(uuid())
+  branchId     String
+  branch       Branch   @relation(fields: [branchId], references: [id])
+  date         DateTime
+  star5        Int      @default(0)
+  star4        Int      @default(0)
+  star3        Int      @default(0)
+  star2        Int      @default(0)
+  star1        Int      @default(0)
+  problemNotes String?
+  picName      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([date])
+  @@index([branchId])
+}
+
+model CRMCustomerData {
+  id              String    @id @default(uuid())
+  customerName    String
+  phone           String
+  branchId        String
+  branch          Branch    @relation(fields: [branchId], references: [id])
+  purchaseDate    DateTime
+  purchaseDetails String
+  purchaseQty     Int       @default(1)
+  purchaseAmount  Float     @default(0)
+  isActive        Boolean   @default(true)
+  lastFollowUp    DateTime?
+  followUpResult  String?
+  picName         String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([branchId])
+  @@index([phone])
+}
+
+model CRMMysteryGuest {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  score     Int
+  notes     String?
+  date      DateTime
+  picName   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([branchId])
+}
+
+model Log {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // CREATE_TRANSACTION, VOID_TRANSACTION, RETURN_TRANSACTION, BULK_IMPORT, etc.
+  entityType String? // "Transaction" | "Product" | "StockTransfer" | "PurchaseOrder" etc.
+  entityId   String? // The ID of the entity being acted on
+  details    String?
+  ipAddress  String? // Requester IP for security audit
+  userAgent  String? // Browser/client info
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([entityType, entityId]) // Critical: query all logs for a given entity
+  @@index([userId])
+  @@index([createdAt])
+  @@map("logs")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  contact   String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id          String   @id @default(uuid()) // PO number
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  status      String   @default("pending") // pending, completed, cancelled
+  totalAmount Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  // Basic info for the items being purchased before they become actual 'Products' with SN
+  name      String
+  category  String?
+  brand     String?
+  buyPrice  Float
+  sellPrice Float // Intended sell price
+  quantity  Int
+  subtotal  Float
+
+  @@map("purchase_order_items")
+}
+
+model SalesTarget {
+  id                    String   @id @default(uuid())
+  branchId              String
+  branch                Branch   @relation(fields: [branchId], references: [id])
+  month                 Int
+  year                  Int
+  targetAmount          Float    @default(0)
+  targetItemQty         Int      @default(0)
+  targetServiceAmount   Float    @default(0)
+  targetAccessoryAmount Float    @default(0)
+  targetAccessoryQty    Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([branchId, month, year])
+  @@map("sales_targets")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  amount      Float
+  category    String // Listrik, Sewa, Gaji, Operasional, Lainnya
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("expenses")
+}
+
+model ServiceJob {
+  id             String    @id @default(uuid()) // Tanda Terima ID
+  branchId       String
+  branch         Branch    @relation(fields: [branchId], references: [id])
+  customerName   String
+  customerPhone  String?
+  deviceModel    String
+  issues         String
+  estimatedCost  Float     @default(0)
+  downPayment    Float     @default(0)
+  status         String    @default("Antrean") // Antrean, Pengecekan, Menunggu Sparepart, Selesai, Diambil, Batal
+  notes          String?
+  completionDate DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("service_jobs")
+}
+
+model Rental {
+  id               String   @id @default(uuid())
+  branchId         String
+  branch           Branch   @relation(fields: [branchId], references: [id])
+  customerName     String
+  customerPhone    String?
+  customerIdentity String? // KTP/SIM
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+  startDate        DateTime
+  endDate          DateTime
+  rentalType       String   @default("Harian") // Harian, Mingguan, Bulanan, Tahunan
+  totalFee         Float
+  deposit          Float    @default(0)
+  shippingFee      Float    @default(0)
+  installationFee  Float    @default(0)
+  otherFee         Float    @default(0)
+  lateFee          Float    @default(0)
+  status           String   @default("Active") // Active, Returned, Overdue
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("rentals")
+}
+
+model PromoCampaign {
+  id              String   @id @default(uuid())
+  name            String
+  startDate       DateTime
+  endDate         DateTime
+  discountRp      Float    @default(0)
+  discountPct     Float    @default(0)
+  freeAccessoryId String?
+  freeAccessory   Product? @relation("FreeAccessory", fields: [freeAccessoryId], references: [id])
+  voucherCode     String?  @unique
+  branchId        String? // null means applies to all branches
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+  minPurchase     Float    @default(0)
+  maxDiscount     Float?
+  usageCount      Int      @default(0)
+  maxUsage        Int?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("promo_campaigns")
+}
+
+model Warranty {
+  id                String          @id @default(uuid())
+  transactionItemId String          @unique
+  transactionItem   TransactionItem @relation(fields: [transactionItemId], references: [id])
+  customerName      String
+  customerPhone     String?
+  startDate         DateTime
+  endDate           DateTime
+  type              String          @default("1 Bulan Hardware, 11 Bulan Software")
+  status            String          @default("Active")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("warranties")
+}
+
+model TransferOrder {
+  id             String    @id @default(uuid())
+  transferNumber String    @unique // e.g. TO-260715-001
+  doNumber       String? // Surat Jalan
+  fromBranchId   String
+  fromBranch     Branch    @relation("FromBranchTO", fields: [fromBranchId], references: [id])
+  toBranchId     String
+  toBranch       Branch    @relation("ToBranchTO", fields: [toBranchId], references: [id])
+  status         String    @default("Draft")
+  // Draft, Approved, Ready to Pick, Picking, Ready to Ship, Dispatched, In Transit, Partially Received, Received, Completed, Cancelled
+  notes          String?
+  dispatchDate   DateTime?
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  items StockTransfer[]
+
+  @@index([transferNumber])
+  @@index([status])
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@map("transfer_orders")
+}
+
+model StockTransfer {
+  id              String         @id @default(uuid())
+  transferOrderId String?
+  transferOrder   TransferOrder? @relation(fields: [transferOrderId], references: [id])
+  batchId         String? // Legacy ID Surat Jalan (e.g. 001/LMI/STB/BA-ZBN/13/VII/2026)
+  fromBranchId    String
+  fromBranch      Branch         @relation("FromBranch", fields: [fromBranchId], references: [id])
+  toBranchId      String
+  toBranch        Branch         @relation("ToBranch", fields: [toBranchId], references: [id])
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  status          String         @default("Pending") // Pending | Picked | Shipped | Received | Rejected | Returned | Cancelled
+  notes           String? // Rejection reason or shipping notes
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([transferOrderId])
+  @@index([batchId])
+  @@index([status])
+  @@index([toBranchId])
+  @@index([fromBranchId])
+  @@map("stock_transfers")
+}
+
+model StockOpname {
+  id         String            @id @default(uuid())
+  branchId   String
+  branch     Branch            @relation(fields: [branchId], references: [id])
+  status     String            @default("Draft") // Draft, In Progress, Review, Verified
+  notes      String?
+  startTime  DateTime          @default(now())
+  uploadTime DateTime?
+  verifiedAt DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  items      StockOpnameItem[]
+
+  @@map("stock_opnames")
+}
+
+model StockOpnameItem {
+  id           String      @id @default(uuid())
+  opnameId     String
+  opname       StockOpname @relation(fields: [opnameId], references: [id])
+  productId    String? // Nullable for unexpected items
+  product      Product?    @relation(fields: [productId], references: [id])
+  serialNumber String? // Explicit SN for expected/unexpected items
+  expectedQty  Int         @default(1)
+  actualQty    Int         @default(0)
+  diffStatus   String // MATCH, MISSING, UNEXPECTED
+  notes        String?
+
+  @@map("stock_opname_items")
+}
+
+model CashManagement {
+  id               String   @id @default(uuid())
+  branchId         String
+  branch           Branch   @relation(fields: [branchId], references: [id])
+  type             String // Setoran Tunai, Pencairan Marketplace, Petty Cash, etc.
+  amount           Float
+  date             DateTime @default(now())
+  picName          String?
+  suratJalanUrl    String?
+  buktiTransferUrl String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("cash_managements")
+}
+
+// ─── Notification System ───
+model Notification {
+  id           String   @id @default(uuid())
+  type         String // VOID_REQUEST, RETURN, STOCK_RECEIVED, CASH_REQUEST, TRANSFER_PENDING
+  title        String
+  message      String
+  isRead       Boolean  @default(false)
+  targetRole   String?
+  targetUserId String?
+  referenceId  String?
+  createdAt    DateTime @default(now())
+
+  @@map("notifications")
+}
+
+// ─── B2B Division ───
+model B2BPartner {
+  id           String   @id @default(uuid())
+  name         String
+  company      String
+  category     String   @default("Instansi") // Kampus/Universitas, Sekolah, Instansi/Perusahaan
+  contactName  String?
+  contactPhone String?
+  email        String?
+  status       String   @default("Active") // Active, Inactive
+  startDate    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  activities      B2BActivity[]
+  transactions    B2BTransaction[]
+  maintenanceLogs B2BMaintenanceLog[]
+  schedules       B2BSchedule[]
+
+  @@map("b2b_partners")
+}
+
+model B2BActivity {
+  id          String       @id @default(uuid())
+  partnerId   String? // Boleh kosong kalau pitching awal
+  partner     B2BPartner?  @relation(fields: [partnerId], references: [id])
+  method      String       @default("Online") // Online, Offline
+  type        String // Meeting, Proposal, Closing, Follow-up, Pitching, Visit
+  description String?
+  targetName  String? // Nama Prospek jika belum jadi Partner
+  amount      Float        @default(0) // Legacy compatibility, or use B2BTransaction instead
+  picName     String? // Nama PIC B2B yg handle
+  date        DateTime     @default(now())
+  scheduleId  String?      @unique // 1 Activity resolves 1 Schedule
+  schedule    B2BSchedule? @relation(fields: [scheduleId], references: [id])
+  createdAt   DateTime     @default(now())
+
+  @@map("b2b_activities")
+}
+
+model B2BSchedule {
+  id         String       @id @default(uuid())
+  partnerId  String?
+  partner    B2BPartner?  @relation(fields: [partnerId], references: [id])
+  targetName String? // Nama instansi jika belum jadi partner
+  title      String
+  picName    String
+  startDate  DateTime
+  endDate    DateTime
+  status     String       @default("Belum Visit") // Belum Visit, Selesai, Gagal
+  notes      String?
+  activity   B2BActivity?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@map("b2b_schedules")
+}
+
+model B2BTransaction {
+  id             String     @id @default(uuid())
+  partnerId      String
+  partner        B2BPartner @relation(fields: [partnerId], references: [id])
+  picName        String? // Nama PIC yg closing
+  type           String // Barang, Jasa, Investasi
+  itemName       String? // e.g., "Laptop 10 unit", "Zboard 6 bulan"
+  qty            Int        @default(1)
+  amount         Float      @default(0)
+  contractPeriod String?
+  paymentMethod  String?
+  paymentDetails String?
+  date           DateTime   @default(now())
+  createdAt      DateTime   @default(now())
+
+  @@map("b2b_transactions")
+}
+
+model B2BMaintenanceLog {
+  id          String     @id @default(uuid())
+  partnerId   String
+  partner     B2BPartner @relation(fields: [partnerId], references: [id])
+  activity    String // Perbarui MoU, Update Voucher, Cek Banner, Pastikan Kontrak
+  description String?
+  date        DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+
+  @@map("b2b_maintenance_logs")
+}
+
+// ─── BSB (Buku Sekolah Bisnis) Division ───
+model BSBTransaction {
+  id             String   @id @default(uuid())
+  type           String // Buku Fisik, E-book, Bundling
+  qty            Int      @default(1)
+  amount         Float    @default(0) // Omzet
+  platform       String // Skalev, Tiktok, E-commerce, Direct
+  shippingStatus String // Sukses, Gagal/Retur, Proses
+  picName        String?
+  buyerName      String?
+  buyerContact   String?
+  date           DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@map("bsb_transactions")
+}
+
+model BSBActivity {
+  id          String   @id @default(uuid())
+  type        String // Live Streaming, Konten Sosmed, Optimasi Iklan, Meeting, dll
+  description String?
+  picName     String?
+  title       String?
+  platform    String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@map("bsb_activities")
+}
+
+model BSBExpense {
+  id          String   @id @default(uuid())
+  category    String // Biaya Iklan, Produksi Konten, Operasional, dll
+  amount      Float    @default(0)
+  description String?
+  picName     String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@map("bsb_expenses")
+}
+
+// ─── CRM Division ───
+model CRMReport {
+  id                 String   @id @default(uuid())
+  month              Int
+  year               Int
+  totalRepeatOrder   Int      @default(0)
+  konsumenAktif      Int      @default(0)
+  konsumenTidakAktif Int      @default(0)
+  reviewGoogleMaps   Int      @default(0)
+  ratingAvg          Float    @default(0)
+  mysteryGuestScore  Float    @default(0)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([month, year])
+  @@map("crm_reports")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// ─── Division KPI Tracking ───
+model DivisionKPI {
+  id          String   @id @default(uuid())
+  division    String // 'B2B', 'BSB', 'CRM'
+  month       Int
+  year        Int
+  targetValue Float    @default(0) // The target metric (e.g. 100 for visits, 50M for Omzet)
+  targetType  String // e.g., 'Kunjungan', 'Omzet', 'Repeat Order'
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([division, month, year])
+  @@map("division_kpis")
+}
+
+// ─── WORKFLOW ENGINE MODELS ───
+
+model WorkflowDefinition {
+  id          String  @id @default(uuid())
+  name        String  @unique // e.g., "INVENTORY_TRANSFER_V1"
+  module      String // e.g., "INVENTORY", "SALES", "HR"
+  description String?
+  isActive    Boolean @default(true)
+  version     Int     @default(1)
+
+  states      WorkflowState[]
+  transitions WorkflowTransition[]
+  instances   WorkflowInstance[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("workflow_definitions")
+}
+
+model WorkflowState {
+  id         String             @id @default(uuid())
+  workflowId String
+  workflow   WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  name String // e.g., "Draft", "Approved", "In Transit"
+  type String // "INITIAL", "INTERMEDIATE", "FINAL", "CANCELLED"
+
+  transitionsFrom WorkflowTransition[] @relation("FromState")
+  transitionsTo   WorkflowTransition[] @relation("ToState")
+  instances       WorkflowInstance[]
+
+  @@unique([workflowId, name])
+  @@map("workflow_states")
+}
+
+model WorkflowTransition {
+  id         String             @id @default(uuid())
+  workflowId String
+  workflow   WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  fromStateId String
+  fromState   WorkflowState @relation("FromState", fields: [fromStateId], references: [id])
+
+  toStateId String
+  toState   WorkflowState @relation("ToState", fields: [toStateId], references: [id])
+
+  conditions Json? // e.g. { "rules": [{ "field": "amount", "operator": ">", "value": 1000000 }] }
+  actions    Json? // e.g. ["RESERVE_INVENTORY", "NOTIFY_MANAGER"]
+
+  // Who can trigger this transition? Integration with RBAC/RoleDelegation
+  requiredRole       String?
+  requiredPermission String?
+  requireDelegation  Boolean @default(false)
+
+  @@unique([workflowId, fromStateId, toStateId])
+  @@map("workflow_transitions")
+}
+
+model WorkflowInstance {
+  id         String             @id @default(uuid())
+  workflowId String
+  workflow   WorkflowDefinition @relation(fields: [workflowId], references: [id])
+
+  entityId   String // Document ID (e.g., Transfer ID, Refund ID)
+  entityType String // Table Name (e.g., "StockTransfer", "Refund")
+
+  currentStateId String
+  currentState   WorkflowState @relation(fields: [currentStateId], references: [id])
+
+  contextData Json? // Snapshot data saat ini
+  history     WorkflowHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([entityType, entityId])
+  @@map("workflow_instances")
+}
+
+model WorkflowHistory {
+  id         String           @id @default(uuid())
+  instanceId String
+  instance   WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  fromStateId String?
+  toStateId   String
+
+  actionBy   String? // User ID yang melakukan aksi
+  comment    String? // Catatan/Alasan
+  reason     String? // e.g. "Cancelled due to out of stock"
+  ipAddress  String?
+  durationMs Int? // Waktu yang dihabiskan di state sebelumnya
+
+  createdAt DateTime @default(now())
+
+  @@map("workflow_histories")
+}
+
+// ─── EVENT BUS MODELS ───
+
+model EventBusLog {
+  id            String  @id @default(uuid())
+  eventName     String // e.g. "InventoryReserved", "WorkflowApproved"
+  sourceModule  String // e.g. "POS", "INVENTORY", "WORKFLOW"
+  entityType    String // e.g. "Transaction", "StockTransfer"
+  entityId      String
+  branchId      String?
+  triggeredBy   String? // userId
+  correlationId String? // Untuk melacak rantai event yang saling berhubungan
+
+  payload  Json // Data utama event
+  metadata Json? // Data tambahan (Browser, IP, dll)
+
+  status       String  @default("PENDING") // PENDING, PROCESSED, FAILED
+  retryCount   Int     @default(0)
+  errorMessage String?
+
+  publishedAt DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([eventName])
+  @@index([status])
+  @@index([entityType, entityId])
+  @@index([publishedAt])
+  @@map("event_bus_logs")
+}
+
+// ─── BUSINESS RULE ENGINE MODELS ───
+
+model BusinessRule {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  module      String // e.g. "POS", "INVENTORY", "HR"
+  category    String // e.g. "DISCOUNT", "APPROVAL", "VALIDATION"
+
+  priority       Int     @default(0) // Aturan prioritas tertinggi dievaluasi lebih dulu
+  isActive       Boolean @default(true)
+  stopProcessing Boolean @default(false) // Jika TRUE, aturan prioritas di bawahnya akan diabaikan jika aturan ini "Match"
+
+  effectiveDate  DateTime  @default(now())
+  expirationDate DateTime?
+  version        Int       @default(1)
+
+  conditions Json // Format DSL: { operator: "AND", rules: [...] }
+  actions    Json // Contoh: { type: "REQUIRE_APPROVAL", payload: { role: "Manager" } }
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([module, category])
+  @@index([isActive, effectiveDate])
+  @@map("business_rules")
+}
+
+model RuleEvaluationHistory {
+  id       String @id @default(uuid())
+  ruleId   String
+  ruleName String // Denormalized for quick querying
+
+  entityType String // e.g. "Transaction", "Transfer"
+  entityId   String?
+
+  inputPayload    Json // Data input yang dievaluasi
+  isMatch         Boolean // Apakah kondisinya terpenuhi?
+  executedActions Json? // Aksi yang terpicu (jika Match)
+
+  durationMs  Int     @default(0)
+  triggeredBy String?
+
+  createdAt DateTime @default(now())
+
+  @@index([ruleId])
+  @@index([entityType, entityId])
+  @@map("rule_evaluation_histories")
+}
+
+// ─── BACKGROUND JOB ENGINE MODELS ───
+
+model BackgroundJob {
+  id      String @id @default(uuid())
+  type    String // e.g. "PDF_GENERATION", "EMAIL_DELIVERY"
+  queue   String @default("default") // "high", "default", "low"
+  module  String // e.g. "FINANCE", "INVENTORY"
+  payload Json // Parameter pekerjaan
+
+  status   String @default("QUEUED") // QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED
+  priority Int    @default(0) // Semakin tinggi nilainya, semakin cepat dieksekusi
+
+  result        Json? // Hasil pekerjaan (misal: URL file PDF)
+  failureReason String? @db.Text
+
+  retryCount Int @default(0)
+  maxRetries Int @default(3)
+
+  runAt      DateTime  @default(now()) // Waktu eksekusi
+  startedAt  DateTime?
+  finishedAt DateTime?
+  durationMs Int?
+
+  createdBy String? // Siapa yang meminta pekerjaan ini
+  workerId  String? // ID server yang mengambil pekerjaan ini
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([queue, status, runAt])
+  @@index([type])
+  @@map("background_jobs")
+}
+
+// ─── METADATA ENGINE (DYNAMIC SCHEMA) MODELS ───
+
+model CustomFieldDefinition {
+  id         String @id @default(uuid())
+  module     String // e.g. "INVENTORY", "HR", "CRM"
+  entityType String // e.g. "Product", "LeaveRequest", "Customer"
+
+  name  String // System name (e.g. "warranty_months") - must be snake/camel case
+  label String // UI label (e.g. "Warranty Period (Months)")
+  type  String // TEXT, NUMBER, DATE, BOOLEAN, SELECT, MULTI_SELECT, FILE, etc
+
+  isRequired Boolean @default(false)
+  isUnique   Boolean @default(false)
+  isHidden   Boolean @default(false)
+  isReadonly Boolean @default(false)
+
+  options      Json? // Pilihan untuk SELECT (contoh: ["12", "24", "36"])
+  validation   Json? // Regulasi tambahan (contoh: { "min": 0, "max": 60, "regex": "^[A-Z]+$" })
+  defaultValue String?
+  helpText     String?
+
+  order     Int     @default(0)
+  groupName String? // Untuk pengelompokan di UI (Accordion/Tab)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entityType, name])
+  @@index([module, entityType])
+  @@map("custom_field_definitions")
+}
+
+model EntityCustomData {
+  id         String @id @default(uuid())
+  entityType String // e.g. "Product"
+  entityId   String // ID asli dari entitas tersebut
+
+  data Json // Key-value pairs dari nilai custom field
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entityType, entityId])
+  @@map("entity_custom_data")
+}
+
+// ─── POS End Of Day (EOD) ───
+model EndOfDay {
+  id                String   @id @default(uuid())
+  branchId          String
+  cashierId         String
+  date              DateTime @default(now())
+  totalTransactions Int
+  expectedCash      Float
+  actualCash        Float
+  expectedTransfer  Float
+  actualTransfer    Float
+  variance          Float
+  notes             String?
+  createdAt         DateTime @default(now())
+
+  branch  Branch @relation(fields: [branchId], references: [id])
+  cashier User   @relation(fields: [cashierId], references: [id])
+
+  @@index([branchId, date])
+  @@index([cashierId, date])
+  @@map("end_of_days")
+}

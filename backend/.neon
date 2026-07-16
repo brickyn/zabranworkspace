@@ -1,0 +1,10 @@
+{
+  "orgId": "org-frosty-cherry-94341041",
+  "projectId": "icy-grass-67488974",
+  "_init": {
+    "features": [
+      "database",
+      "auth"
+    ]
+  }
+}

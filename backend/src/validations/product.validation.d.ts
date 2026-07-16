@@ -1,0 +1,48 @@
+import { z } from 'zod';
+export declare const createProductSchema: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+    brand: z.ZodOptional<z.ZodString>;
+    model: z.ZodOptional<z.ZodString>;
+    processor: z.ZodOptional<z.ZodString>;
+    ram: z.ZodOptional<z.ZodString>;
+    storage: z.ZodOptional<z.ZodString>;
+    gpu: z.ZodOptional<z.ZodString>;
+    screenSize: z.ZodOptional<z.ZodString>;
+    condition: z.ZodOptional<z.ZodString>;
+    grade: z.ZodOptional<z.ZodString>;
+    completeness: z.ZodOptional<z.ZodString>;
+    description: z.ZodOptional<z.ZodString>;
+    buyPrice: z.ZodNumber;
+    sellPrice: z.ZodNumber;
+    promoPrice: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    status: z.ZodOptional<z.ZodString>;
+    imageUrl: z.ZodOptional<z.ZodString>;
+    category: z.ZodOptional<z.ZodString>;
+    serialNumber: z.ZodOptional<z.ZodString>;
+    branchId: z.ZodString;
+}, z.core.$strip>;
+export declare const updateProductSchema: z.ZodObject<{
+    id: z.ZodOptional<z.ZodString>;
+    name: z.ZodOptional<z.ZodString>;
+    brand: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    model: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    processor: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    ram: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    storage: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    gpu: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    screenSize: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    condition: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    grade: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    completeness: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    description: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    buyPrice: z.ZodOptional<z.ZodNumber>;
+    sellPrice: z.ZodOptional<z.ZodNumber>;
+    promoPrice: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodNumber>>>;
+    status: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    imageUrl: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    category: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    serialNumber: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    branchId: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+//# sourceMappingURL=product.validation.d.ts.map
