@@ -215,9 +215,25 @@ export default function ProductsPage() {
           const parts = spesifikasiRaw.split('/').map(p => p.trim());
           if (parts[0]) processor = parts[0];
           if (parts[1]) ram = parts[1];
-          if (parts[2]) gpu = parts[2];
-          if (parts[3]) storage = parts[3];
-          if (parts[4]) screenSize = parts[4];
+
+          if (parts.length === 4) {
+            // Standard 4-part format: Processor / RAM / Storage / GPU
+            storage = parts[2];
+            gpu = parts[3];
+          } else if (parts.length >= 5) {
+            // 5-part format: Processor / RAM / Storage / GPU / ScreenSize
+            const isP2Gpu = /intel|nvidia|geforce|radeon|rtx|gtx|uhd|hd/i.test(parts[2]);
+            if (isP2Gpu) {
+              gpu = parts[2];
+              storage = parts[3];
+            } else {
+              storage = parts[2];
+              gpu = parts[3];
+            }
+            screenSize = parts[4];
+          } else if (parts.length === 3) {
+            storage = parts[2];
+          }
         }
 
         const color = String(row['WARNA'] || row['Warna'] || row['COLOR'] || row['color'] || '').trim() || undefined;

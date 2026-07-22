@@ -123,7 +123,7 @@ export default function ImportVerificationModal({
                 </thead>
                 <tbody className="divide-y divide-glass-border bg-black/20">
                   {items.map((row, idx) => {
-                    const specStr = [row.processor, row.ram, row.gpu, row.storage, row.screenSize].filter(Boolean).join('/');
+                    const specStr = [row.processor, row.ram, row.storage, row.gpu, row.screenSize].filter(Boolean).join('/');
                     return (
                       <tr key={idx} className="hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3 font-mono text-gray-500">{idx + 1}</td>
