@@ -107,8 +107,24 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     user.roleDelegationsTo.forEach(delegation => {
       delegation.role.permissions.forEach(rp => permissionSet.add(rp.permission.action));
     });
-    const compiledPermissions = Array.from(permissionSet);
+    
     const resolvedRole = user.userRole?.name || user.role;
+    
+    // Default fallback permissions if DB permissions relation is not linked
+    const ROLE_DEFAULTS: Record<string, string[]> = {
+      Warehouse: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete'],
+      Cashier: ['POS.View', 'POS.Create', 'Inventory.View', 'CRM.View'],
+      Leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Laporan.View', 'CRM.View'],
+      Manager: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View'],
+      Management: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View', 'Users.View'],
+      Finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View']
+    };
+
+    if (permissionSet.size === 0 && ROLE_DEFAULTS[resolvedRole]) {
+      ROLE_DEFAULTS[resolvedRole].forEach(p => permissionSet.add(p));
+    }
+
+    const compiledPermissions = Array.from(permissionSet);
 
     // Generate JWT payload based on API Spec
     const token = jwt.sign(

@@ -56,6 +56,15 @@ export const authorizeRole = (roles: string[]) => {
   };
 };
 
+const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
+  Warehouse: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete'],
+  Cashier: ['POS.View', 'POS.Create', 'Inventory.View', 'CRM.View'],
+  Leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Laporan.View', 'CRM.View'],
+  Manager: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View'],
+  Management: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View', 'Users.View'],
+  Finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View']
+};
+
 export const requirePermission = (permission: string) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
@@ -69,7 +78,15 @@ export const requirePermission = (permission: string) => {
       return;
     }
 
-    if (!req.user.permissions || !req.user.permissions.includes(permission)) {
+    const userPerms = req.user.permissions || [];
+    const defaultPerms = ROLE_DEFAULT_PERMISSIONS[req.user.role] || [];
+    const permPrefix = permission.split('.')[0];
+
+    const hasPerm = userPerms.includes(permission) || 
+                    userPerms.some(p => p.startsWith(permPrefix + '.')) ||
+                    defaultPerms.includes(permission);
+
+    if (!hasPerm) {
       res.status(403).json({ success: false, error: `Forbidden: Missing Permission (${permission})` });
       return;
     }
