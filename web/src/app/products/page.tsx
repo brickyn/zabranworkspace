@@ -351,6 +351,8 @@ export default function ProductsPage() {
     return total + (p.branchId && p.branchId !== 'branch-001' ? (p.totalStock || 0) : 0);
   }, 0);
 
+  const canViewCost = ['Super Admin', 'Finance', 'Management', 'Warehouse', 'Admin', 'Leader'].includes(userRole);
+
   return (
     <DashboardLayout>
       <div className="h-full flex flex-col gap-6">
@@ -584,8 +586,12 @@ export default function ProductsPage() {
                   <th className="px-5 py-4 font-medium">Nama Produk</th>
                   <th className="px-5 py-4 font-medium">Spesifikasi (Proc/RAM/VGA/Storage/Layar)</th>
                   <th className="px-5 py-4 font-medium text-center">Warna</th>
-                  <th className="px-5 py-4 font-medium text-right">HPP Supplier</th>
-                  <th className="px-5 py-4 font-medium text-right">Modal QC/Service</th>
+                  {canViewCost && (
+                    <>
+                      <th className="px-5 py-4 font-medium text-right">HPP Supplier</th>
+                      <th className="px-5 py-4 font-medium text-right">Modal QC/Service</th>
+                    </>
+                  )}
                   <th className="px-5 py-4 font-medium text-right">Harga Jual</th>
                   <th className="px-5 py-4 font-medium text-center">Stok</th>
                   <th className="px-5 py-4 font-medium text-center">Actions</th>
@@ -594,14 +600,14 @@ export default function ProductsPage() {
               <tbody className="divide-y divide-glass-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={canViewCost ? 10 : 8} className="px-6 py-12 text-center text-gray-500">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 opacity-50" />
                       Loading products...
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-16 text-center text-gray-500">
+                    <td colSpan={canViewCost ? 10 : 8} className="px-6 py-16 text-center text-gray-500">
                       <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
                       <p className="text-lg">No products found</p>
                     </td>
@@ -652,12 +658,16 @@ export default function ProductsPage() {
                           <td className="px-5 py-4 text-xs text-center text-gray-300">
                             {product.color || '-'}
                           </td>
-                          <td className="px-5 py-4 text-right text-xs font-medium text-gray-300">
-                            {formatRupiah(hpp)}
-                          </td>
-                          <td className="px-5 py-4 text-right text-xs font-medium text-amber-400">
-                            {formatRupiah(devCost)}
-                          </td>
+                          {canViewCost && (
+                            <>
+                              <td className="px-5 py-4 text-right text-xs font-medium text-gray-300">
+                                {formatRupiah(hpp)}
+                              </td>
+                              <td className="px-5 py-4 text-right text-xs font-medium text-amber-400">
+                                {formatRupiah(devCost)}
+                              </td>
+                            </>
+                          )}
                           <td className="px-5 py-4 text-right">
                             {product.promoPrice ? (
                               <div className="flex flex-col items-end">

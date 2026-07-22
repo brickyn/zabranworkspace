@@ -176,45 +176,45 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
           </div>
 
           {/* Pricing & Modal Breakdown Structure */}
-          <div className="bg-gradient-to-br from-blue-950/40 via-teal-950/20 to-slate-900/40 p-5 rounded-2xl border border-blue-500/20 space-y-4 mt-4">
-            <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1">
-              <DollarSign className="w-4 h-4" /> Rincian Modal & Harga Jual Unit Second
-            </h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
-                <div className="text-[11px] text-muted mb-1 font-medium">1. Harga HPP (Supplier)</div>
-                <div className="text-base font-bold text-white">{formatRupiah(product.buyPrice)}</div>
+          {canManage ? (
+            <div className="bg-gradient-to-br from-blue-950/40 via-teal-950/20 to-slate-900/40 p-5 rounded-2xl border border-blue-500/20 space-y-4 mt-4">
+              <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                <DollarSign className="w-4 h-4" /> Rincian Modal & Harga Jual Unit Second
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
+                  <div className="text-[11px] text-muted mb-1 font-medium">1. Harga HPP (Supplier)</div>
+                  <div className="text-base font-bold text-white">{formatRupiah(product.buyPrice)}</div>
+                </div>
+                <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
+                  <div className="text-[11px] text-muted mb-1 font-medium">2. Modal Pengembang (QC/Service)</div>
+                  <div className="text-base font-bold text-amber-400">{formatRupiah(product.developmentCost || 0)}</div>
+                </div>
+                <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
+                  <div className="text-[11px] text-muted mb-1 font-medium">3. Harga Jual (Konsumen)</div>
+                  <div className="text-base font-bold text-emerald-400">{formatRupiah(product.sellPrice)}</div>
+                </div>
               </div>
-              <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
-                <div className="text-[11px] text-muted mb-1 font-medium">2. Modal Pengembang (QC/Service)</div>
-                <div className="text-base font-bold text-amber-400">{formatRupiah(product.developmentCost || 0)}</div>
-              </div>
-              <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
-                <div className="text-[11px] text-muted mb-1 font-medium">3. Harga Jual (Konsumen)</div>
-                <div className="text-base font-bold text-emerald-400">{formatRupiah(product.sellPrice)}</div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t border-glass-border">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted">Total Modal Fisik Unit:</span>
+                  <span className="text-sm font-extrabold text-amber-300 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
+                    {formatRupiah(totalModal)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted">Estimasi Gross Margin:</span>
+                  <span className={`text-sm font-extrabold px-3 py-1 rounded-lg border ${marginProfit >= 0 ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' : 'text-red-300 bg-red-500/10 border-red-500/20'}`}>
+                    {formatRupiah(marginProfit)}
+                  </span>
+                </div>
               </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t border-glass-border">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted">Total Modal Fisik Unit:</span>
-                <span className="text-sm font-extrabold text-amber-300 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
-                  {formatRupiah(totalModal)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted">Estimasi Gross Margin:</span>
-                <span className={`text-sm font-extrabold px-3 py-1 rounded-lg border ${marginProfit >= 0 ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' : 'text-red-300 bg-red-500/10 border-red-500/20'}`}>
-                  {formatRupiah(marginProfit)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {!canManage && (
+          ) : (
             <div className="bg-glass-bg/50 p-5 rounded-2xl border border-glass-border flex justify-between items-center mt-4">
-              <span className="text-muted">Harga Jual</span>
+              <span className="text-muted font-medium">Harga Jual Konsumen</span>
               <div className="text-right">
                 {product.promoPrice ? (
                   <>
@@ -222,7 +222,7 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
                     <div className="text-sm text-gray-500 line-through">{formatRupiah(product.sellPrice)}</div>
                   </>
                 ) : (
-                  <div className="font-bold text-xl text-blue-400">{formatRupiah(product.sellPrice)}</div>
+                  <div className="font-bold text-xl text-emerald-400">{formatRupiah(product.sellPrice)}</div>
                 )}
               </div>
             </div>
