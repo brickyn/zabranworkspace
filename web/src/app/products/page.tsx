@@ -272,8 +272,17 @@ export default function ProductsPage() {
       }
     } catch (error: any) {
       let errMessage = error.response?.data?.error || error.message || 'Gagal mengimpor data ke server';
-      if (error.response?.data?.details && Array.isArray(error.response.data.details)) {
-        errMessage += `: ${error.response.data.details.join(', ')}`;
+      if (error.response?.data?.details) {
+        if (Array.isArray(error.response.data.details)) {
+          const detailStr = error.response.data.details
+            .map((d: any) => (typeof d === 'object' && d !== null ? (d.message || d.error || JSON.stringify(d)) : String(d)))
+            .join('; ');
+          errMessage += `: ${detailStr}`;
+        } else if (typeof error.response.data.details === 'object') {
+          errMessage += `: ${JSON.stringify(error.response.data.details)}`;
+        } else {
+          errMessage += `: ${error.response.data.details}`;
+        }
       }
       setImportResult({ success: false, message: errMessage });
       toast.error(errMessage);

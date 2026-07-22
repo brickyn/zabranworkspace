@@ -268,17 +268,14 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
       });
     }
 
-    const branchId = products[0].branchId || req.user?.branchId;
-    if (!branchId) {
-      res.status(400).json({ success: false, error: 'Branch ID is required for stock initialization.' });
-      return;
-    }
+    const branchId = products[0]?.branchId || req.user?.branchId || 'branch-001';
+    const receivedById = req.user?.id || '200001';
 
     // 2. Create Inbound Batch
     const inboundBatch = await prisma.inboundBatch.create({
       data: {
         supplierId: initSupplier.id,
-        receivedById: req.user!.id,
+        receivedById: receivedById,
         branchId: branchId,
         inboundDate: new Date()
       }
@@ -286,9 +283,9 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
 
     // 3. Group by SKU
     const skuGroups: Record<string, any[]> = {};
-    for (const row of products) {
-      const sku = row.sku || row.id;
-      if (!sku) continue;
+    for (let i = 0; i < products.length; i++) {
+      const row = products[i];
+      const sku = String(row.sku || row.id || '').trim() || `PROD-AUTO-${Date.now()}-${i}`;
       if (!skuGroups[sku]) skuGroups[sku] = [];
       skuGroups[sku].push(row);
     }
@@ -311,7 +308,7 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
       const product = await prisma.product.upsert({
         where: { sku: sku },
         update: {
-          name: String(masterRow.name),
+          name: String(masterRow.name || 'Produk Noname'),
           buyPrice: Number(masterRow.buyPrice || masterRow.basePrice || 0),
           developmentCost: Number(masterRow.developmentCost || masterRow.modalPengembang || 0),
           sellPrice: Number(masterRow.sellPrice || masterRow.retailPrice || 0),
@@ -328,7 +325,7 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
         },
         create: {
           sku: sku,
-          name: String(masterRow.name),
+          name: String(masterRow.name || 'Produk Noname'),
           buyPrice: Number(masterRow.buyPrice || masterRow.basePrice || 0),
           developmentCost: Number(masterRow.developmentCost || masterRow.modalPengembang || 0),
           sellPrice: Number(masterRow.sellPrice || masterRow.retailPrice || 0),
@@ -368,9 +365,13 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
       success: true, 
       message: `Berhasil mengimpor ${productsUpserted} Produk Master dan ${itemsCreated} Stok Fisik.` 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Bulk Import Error:", error);
-    res.status(500).json({ success: false, error: 'Failed to import products', details: (error as Error).message || error });
+    let detailsStr = error?.message || String(error);
+    if (error?.errors && Array.isArray(error.errors)) {
+      detailsStr = error.errors.map((e: any) => `${e.path?.join('.')}: ${e.message}`).join(', ');
+    }
+    res.status(400).json({ success: false, error: 'Failed to import products', details: detailsStr });
   }
 };
 

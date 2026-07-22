@@ -48,7 +48,7 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
         category: '',
         serialNumber: '',
         imageUrl: '',
-        branchId: user?.branchId || '',
+        branchId: user?.branchId || 'branch-001',
       });
     }
     setError(null);
@@ -71,7 +71,12 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
     setError(null);
 
     try {
-      const payload = { ...formData, id: formData.sku || formData.id };
+      const generatedId = formData.sku || formData.id || `PROD-${Date.now()}`;
+      const payload = { 
+        ...formData, 
+        id: generatedId,
+        branchId: formData.branchId || 'branch-001'
+      };
       delete payload.sku;
 
       if (product) {

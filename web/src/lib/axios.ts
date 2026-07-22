@@ -18,8 +18,12 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only 401 Unauthorized (expired / invalid token) should clear session & redirect
-    if (error.response?.status === 401) {
+    const errMessage = String(error.response?.data?.error || '').toLowerCase();
+    const isAuthFailure = 
+      error.response?.status === 401 || 
+      (error.response?.status === 403 && (errMessage.includes('token') || errMessage.includes('unauthorized') || errMessage.includes('invalid')));
+
+    if (isAuthFailure) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
