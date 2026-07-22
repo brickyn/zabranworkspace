@@ -12,21 +12,17 @@ interface ProductDetailModalProps {
 export default function ProductDetailModal({ open, onClose, product, userRole, onEdit }: ProductDetailModalProps) {
   if (!open || !product) return null;
 
-  const isAdmin = ['Super Admin', 'Finance', 'Management'].includes(userRole);
+  const canManage = ['Super Admin', 'Finance', 'Management', 'Warehouse', 'Admin', 'Leader'].includes(userRole);
+  const totalModal = (Number(product.buyPrice) || 0) + (Number(product.developmentCost) || 0);
+  const marginProfit = (Number(product.sellPrice) || 0) - totalModal;
 
-  const formatRupiah = (number: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number || 0);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'available': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'sold': return 'bg-gray-500/20 text-muted border-gray-500/30';
-      case 'reserved': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'service': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      default: return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    }
-  };
+  const formattedSpecStr = [
+    product.processor || '-',
+    product.ram || '-',
+    product.gpu || '-',
+    product.storage || '-',
+    product.screenSize || '-'
+  ].join('/');
 
   return (
     <div 
@@ -41,7 +37,7 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
         <div className="flex items-center justify-between p-6 border-b border-glass-border">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Package className="w-5 h-5 text-blue-400" />
-            Product Details
+            Detail & Modal Produk
           </h2>
           <button 
             onClick={onClose}
@@ -58,16 +54,21 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
               <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
                 {product.name}
               </h1>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(product.status)}`}>
                   {product.status || 'Available'}
                 </span>
                 <span className="text-muted text-sm">{product.category?.name || product.categoryName || 'Laptop'}</span>
+                {product.color && (
+                  <span className="px-2.5 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-medium">
+                    Warna: {product.color}
+                  </span>
+                )}
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              {isAdmin && (
+              {canManage && (
                 <button 
                   onClick={() => {
                     onClose();
@@ -93,7 +94,7 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
             <div className="bg-glass-bg/50 p-4 rounded-2xl border border-glass-border">
               <div className="flex items-center gap-2 text-muted mb-1 text-sm">
                 <Hash className="w-4 h-4" />
-                ID Produk (Kode-YYMMDD-XXX)
+                ID Produk (SKU)
               </div>
               <div className="text-white font-mono">{product.sku || product.id}</div>
             </div>
@@ -109,7 +110,7 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
             <div className="bg-glass-bg/50 p-4 rounded-2xl border border-glass-border">
               <div className="flex items-center gap-2 text-muted mb-1 text-sm">
                 <Box className="w-4 h-4" />
-                Branch Location
+                Lokasi Cabang / Gudang
               </div>
               <div className="text-white">{product.branch?.name || '-'}</div>
             </div>
@@ -123,49 +124,79 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
             </div>
           </div>
 
+          {/* Specifications */}
           <div className="bg-glass-bg/50 p-5 rounded-2xl border border-glass-border space-y-4 mt-4">
-            <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-2">Specifications</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider">Spesifikasi Detail</h3>
+              <span className="text-xs font-mono bg-black/40 px-3 py-1 rounded-lg border border-glass-border text-emerald-400">
+                {formattedSpecStr}
+              </span>
+            </div>
             
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-6">
               <div>
                 <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Cpu className="w-3 h-3"/> Processor</div>
-                <div className="text-sm text-gray-200">{product.processor || '-'}</div>
+                <div className="text-sm text-gray-200 font-medium">{product.processor || '-'}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><HardDrive className="w-3 h-3"/> RAM</div>
-                <div className="text-sm text-gray-200">{product.ram || '-'}</div>
+                <div className="text-sm text-gray-200 font-medium">{product.ram || '-'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Monitor className="w-3 h-3"/> VGA / GPU</div>
+                <div className="text-sm text-gray-200 font-medium">{product.gpu || '-'}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><HardDrive className="w-3 h-3"/> Storage</div>
-                <div className="text-sm text-gray-200">{product.storage || '-'}</div>
+                <div className="text-sm text-gray-200 font-medium">{product.storage || '-'}</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Monitor className="w-3 h-3"/> GPU</div>
-                <div className="text-sm text-gray-200">{product.gpu || '-'}</div>
+                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Monitor className="w-3 h-3"/> Ukuran Layar</div>
+                <div className="text-sm text-gray-200 font-medium">{product.screenSize || '-'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Tag className="w-3 h-3"/> Warna</div>
+                <div className="text-sm text-gray-200 font-medium">{product.color || '-'}</div>
               </div>
             </div>
           </div>
 
-          {isAdmin && (
-            <div className="bg-blue-900/10 p-5 rounded-2xl border border-blue-500/20 space-y-4 mt-4">
-              <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1"><DollarSign className="w-4 h-4" /> Pricing (Admin Only)</h3>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="text-xs text-muted mb-1">Buy Price</div>
-                  <div className="text-sm font-medium text-white">{formatRupiah(product.buyPrice)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted mb-1">Sell Price</div>
-                  <div className="text-sm font-medium text-green-400">{formatRupiah(product.sellPrice)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted mb-1">Promo Price</div>
-                  <div className="text-sm font-medium text-yellow-400">{product.promoPrice ? formatRupiah(product.promoPrice) : '-'}</div>
-                </div>
+          {/* Pricing & Modal Breakdown Structure */}
+          <div className="bg-gradient-to-br from-blue-950/40 via-teal-950/20 to-slate-900/40 p-5 rounded-2xl border border-blue-500/20 space-y-4 mt-4">
+            <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-1">
+              <DollarSign className="w-4 h-4" /> Rincian Modal & Harga Jual Unit Second
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
+                <div className="text-[11px] text-muted mb-1 font-medium">1. Harga HPP (Supplier)</div>
+                <div className="text-base font-bold text-white">{formatRupiah(product.buyPrice)}</div>
+              </div>
+              <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
+                <div className="text-[11px] text-muted mb-1 font-medium">2. Modal Pengembang (QC/Service)</div>
+                <div className="text-base font-bold text-amber-400">{formatRupiah(product.developmentCost || 0)}</div>
+              </div>
+              <div className="bg-black/30 p-3.5 rounded-xl border border-glass-border">
+                <div className="text-[11px] text-muted mb-1 font-medium">3. Harga Jual (Konsumen)</div>
+                <div className="text-base font-bold text-emerald-400">{formatRupiah(product.sellPrice)}</div>
               </div>
             </div>
-          )}
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t border-glass-border">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted">Total Modal Fisik Unit:</span>
+                <span className="text-sm font-extrabold text-amber-300 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
+                  {formatRupiah(totalModal)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted">Estimasi Gross Margin:</span>
+                <span className={`text-sm font-extrabold px-3 py-1 rounded-lg border ${marginProfit >= 0 ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' : 'text-red-300 bg-red-500/10 border-red-500/20'}`}>
+                  {formatRupiah(marginProfit)}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {!isAdmin && (
             <div className="bg-glass-bg/50 p-5 rounded-2xl border border-glass-border flex justify-between items-center mt-4">

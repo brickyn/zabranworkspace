@@ -26,12 +26,12 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
     if (product) {
       setFormData(product);
     } else {
-      // Set defaults for new product, also fetch branch ID from logged in user if possible
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       setFormData({
         status: 'Available',
         buyPrice: 0,
+        developmentCost: 0,
         sellPrice: 0,
         promoPrice: '',
         name: '',
@@ -43,6 +43,7 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
         storage: '',
         gpu: '',
         screenSize: '',
+        color: '',
         condition: '',
         category: '',
         serialNumber: '',
@@ -56,7 +57,7 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    if (['buyPrice', 'sellPrice', 'promoPrice'].includes(name)) {
+    if (['buyPrice', 'developmentCost', 'sellPrice', 'promoPrice'].includes(name)) {
       let numValue = value === '' ? null : Number(value);
       setFormData((prev: any) => ({ ...prev, [name]: numValue }));
     } else {
@@ -70,9 +71,8 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
     setError(null);
 
     try {
-      // Map sku to id if it's a new product, because the schema uses 'id' for Serial Number
       const payload = { ...formData, id: formData.sku || formData.id };
-      delete payload.sku; // sku was just used for the form state
+      delete payload.sku;
 
       if (product) {
         await apiClient.put(`/products/${product.id}`, payload);
@@ -93,6 +93,8 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
   };
 
   if (!open) return null;
+
+  const totalModal = (Number(formData.buyPrice) || 0) + (Number(formData.developmentCost) || 0);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -129,7 +131,7 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
                   <input required name="name" value={formData.name || ''} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm text-muted ml-1">ID Produk (Kode-YYMMDD-XXX) *</label>
+                  <label className="text-sm text-muted ml-1">ID Produk (SKU) *</label>
                   <input required name={product ? 'id' : 'sku'} value={product ? formData.id : formData.sku || ''} onChange={handleChange} disabled={!!product} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all disabled:opacity-50" />
                 </div>
                 <div className="space-y-1.5">
@@ -150,6 +152,10 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
                     <option value="Lainnya">Lainnya</option>
                   </select>
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-muted ml-1">Warna</label>
+                  <input name="color" value={formData.color || ''} onChange={handleChange} placeholder="Contoh: Hitam, Silver, Grey" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                </div>
               </div>
             </div>
 
@@ -163,41 +169,71 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm text-muted ml-1">Processor</label>
-                  <input name="processor" value={formData.processor || ''} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                  <input name="processor" value={formData.processor || ''} onChange={handleChange} placeholder="i7-6600H" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm text-muted ml-1">RAM</label>
-                  <input name="ram" value={formData.ram || ''} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                  <input name="ram" value={formData.ram || ''} onChange={handleChange} placeholder="16GB" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-muted ml-1">VGA / GPU</label>
+                  <input name="gpu" value={formData.gpu || ''} onChange={handleChange} placeholder="IntelHD / RTX 2060" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm text-muted ml-1">Storage</label>
-                  <input name="storage" value={formData.storage || ''} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                  <input name="storage" value={formData.storage || ''} onChange={handleChange} placeholder="256GB SSD" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-muted ml-1">Ukuran Layar</label>
+                  <input name="screenSize" value={formData.screenSize || ''} onChange={handleChange} placeholder="14 FHD IPS" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
                 </div>
               </div>
             </div>
 
-            {/* Pricing & Status */}
+            {/* Cost & Pricing Structure */}
             <div>
-              <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-4">Pricing & Status</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-4">Pricing & Cost Structure</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                 <div className="space-y-1.5">
-                  <label className="text-sm text-muted ml-1">Buy Price (Modal) *</label>
-                  <input required type="number" name="buyPrice" value={formData.buyPrice ?? ''} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                  <label className="text-sm text-muted ml-1">1. Harga HPP (Pembelian Supplier) *</label>
+                  <input required type="number" name="buyPrice" value={formData.buyPrice ?? ''} onChange={handleChange} placeholder="0" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm text-muted ml-1">Sell Price (Jual) *</label>
-                  <input required type="number" name="sellPrice" value={formData.sellPrice ?? ''} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                  <label className="text-sm text-muted ml-1">2. Modal Pengembang (QC + Service)</label>
+                  <input type="number" name="developmentCost" value={formData.developmentCost ?? ''} onChange={handleChange} placeholder="0" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm text-muted ml-1">Promo Price</label>
-                  <input type="number" name="promoPrice" value={formData.promoPrice ?? ''} onChange={handleChange} placeholder="Optional" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+                  <label className="text-sm text-muted ml-1">3. Harga Jual (Konsumen) *</label>
+                  <input required type="number" name="sellPrice" value={formData.sellPrice ?? ''} onChange={handleChange} placeholder="0" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm text-muted ml-1">Status</label>
-                  <select name="status" value={formData.status || 'Available'} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all appearance-none">
-                    {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-glass-border">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted">Total Modal (HPP + QC/Service):</span>
+                  <span className="text-sm font-bold text-amber-400">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(totalModal)}
+                  </span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted">Estimasi Gross Profit:</span>
+                  <span className="text-sm font-bold text-emerald-400">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format((Number(formData.sellPrice) || 0) - totalModal)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm text-muted ml-1">Promo Price (Optional)</label>
+                <input type="number" name="promoPrice" value={formData.promoPrice ?? ''} onChange={handleChange} placeholder="Optional" className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm text-muted ml-1">Status</label>
+                <select name="status" value={formData.status || 'Available'} onChange={handleChange} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all appearance-none">
+                  {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
               </div>
             </div>
 

@@ -216,22 +216,49 @@ export default function ProductsPage() {
       const warehouse = branches.find((b: any) => b.isWarehouse) || branches.find((b: any) => b.name.toLowerCase().includes('zabran')) || branches[0];
       const defaultBranchId = (selectedBranch && selectedBranch !== 'all') ? selectedBranch : (warehouse ? warehouse.id : '');
 
-      const formattedProducts = jsonData.map((row) => ({
-        sku: String(row['SKU'] || row['sku'] || row['ID Produk'] || row['id'] || ''),
-        name: String(row['NAME'] || row['name'] || row['Name'] || ''),
-        category: String(row['CATEGORY'] || row['category'] || row['Category'] || ''),
-        brand: row['BRAND'] || row['brand'] || row['Brand'] || undefined,
-        model: row['MODEL'] || row['model'] || row['Model'] || undefined,
-        processor: row['PROCESSOR'] || row['processor'] || row['Processor'] || undefined,
-        ram: row['RAM'] || row['ram'] || undefined,
-        storage: row['STORAGE'] || row['storage'] || row['Storage'] || undefined,
-        gpu: row['GPU'] || row['gpu'] || undefined,
-        basePrice: Number(row['BASE_PRICE'] || row['basePrice'] || row['Buy Price'] || 0),
-        retailPrice: Number(row['RETAIL_PRICE'] || row['retailPrice'] || row['Sell Price'] || 0),
-        serialNumber: row['SERIAL_NUMBER'] || row['serialNumber'] || row['Serial Number'] || undefined,
-        qty: Number(row['QTY'] || row['qty'] || 1),
-        branchId: defaultBranchId,
-      }));
+      const formattedProducts = jsonData.map((row) => {
+        const spesifikasiRaw = String(row['SPESIFIKASI'] || row['Spesifikasi'] || row['spek'] || row['SPEK'] || '').trim();
+        let processor = row['PROCESSOR'] || row['processor'] || row['Processor'] || undefined;
+        let ram = row['RAM'] || row['ram'] || undefined;
+        let gpu = row['GPU'] || row['gpu'] || row['VGA'] || row['vga'] || undefined;
+        let storage = row['STORAGE'] || row['storage'] || row['Storage'] || undefined;
+        let screenSize = row['SCREEN_SIZE'] || row['screenSize'] || row['Ukuran Layar'] || undefined;
+
+        if (spesifikasiRaw && spesifikasiRaw.includes('/')) {
+          const parts = spesifikasiRaw.split('/').map(p => p.trim());
+          if (parts[0]) processor = parts[0];
+          if (parts[1]) ram = parts[1];
+          if (parts[2]) gpu = parts[2];
+          if (parts[3]) storage = parts[3];
+          if (parts[4]) screenSize = parts[4];
+        }
+
+        const color = String(row['WARNA'] || row['Warna'] || row['COLOR'] || row['color'] || '').trim() || undefined;
+
+        const buyPrice = Number(row['HARGA HPP'] || row['Harga HPP'] || row['HPP_SUPPLIER'] || row['BASE_PRICE'] || row['basePrice'] || row['Buy Price'] || 0);
+        const developmentCost = Number(row['MODAL PENGEMBANG'] || row['Modal Pengembang'] || row['DEVELOPMENT_COST'] || row['modalPengembang'] || 0);
+        const sellPrice = Number(row['HARGA JUAL'] || row['Harga Jual'] || row['RETAIL_PRICE'] || row['retailPrice'] || row['Sell Price'] || 0);
+
+        return {
+          sku: String(row['SKU'] || row['sku'] || row['ID Produk'] || row['id'] || ''),
+          name: String(row['NAME'] || row['name'] || row['Name'] || ''),
+          category: String(row['CATEGORY'] || row['category'] || row['Category'] || ''),
+          brand: row['BRAND'] || row['brand'] || row['Brand'] || undefined,
+          model: row['MODEL'] || row['model'] || row['Model'] || undefined,
+          processor,
+          ram,
+          gpu,
+          storage,
+          screenSize,
+          color,
+          buyPrice,
+          developmentCost,
+          sellPrice,
+          serialNumber: row['SERIAL_NUMBER'] || row['serialNumber'] || row['Serial Number'] || undefined,
+          qty: Number(row['QTY'] || row['qty'] || 1),
+          branchId: defaultBranchId,
+        };
+      });
 
       const res = await apiClient.post('/products/bulk', { products: formattedProducts });
       if (res.data.success) {
@@ -254,17 +281,30 @@ export default function ProductsPage() {
     const ws = XLSX.utils.json_to_sheet([
       {
         'SKU': 'LP-ASUS-001',
-        'NAME': 'Laptop Gaming ASUS ROG',
+        'NAME': 'Laptop Gaming ASUS ROG Strix',
         'CATEGORY': 'Laptop',
         'BRAND': 'ASUS',
         'MODEL': 'ROG Strix G15',
-        'PROCESSOR': 'Intel Core i7-10750H',
-        'RAM': '16GB',
-        'STORAGE': '512GB SSD',
-        'GPU': 'NVIDIA RTX 2060',
-        'BASE_PRICE': 10000000,
-        'RETAIL_PRICE': 12000000,
+        'SPESIFIKASI': 'Intel Core i7-10750H/16GB/NVIDIA RTX 2060/512GB SSD/15.6" FHD 144Hz',
+        'WARNA': 'Hitam Metalik',
+        'HARGA HPP': 8500000,
+        'MODAL PENGEMBANG': 500000,
+        'HARGA JUAL': 11000000,
         'SERIAL_NUMBER': 'SN-ROG-123',
+        'QTY': 1
+      },
+      {
+        'SKU': 'LP-LENOVO-002',
+        'NAME': 'Lenovo ThinkPad T480',
+        'CATEGORY': 'Laptop',
+        'BRAND': 'Lenovo',
+        'MODEL': 'ThinkPad T480',
+        'SPESIFIKASI': 'Intel Core i7-8650U/16GB/Intel HD 620/256GB SSD/14" FHD IPS',
+        'WARNA': 'Hitam Matte',
+        'HARGA HPP': 4200000,
+        'MODAL PENGEMBANG': 300000,
+        'HARGA JUAL': 5800000,
+        'SERIAL_NUMBER': 'SN-TP-8899',
         'QTY': 1
       },
       {
@@ -273,12 +313,11 @@ export default function ProductsPage() {
         'CATEGORY': 'Aksesoris',
         'BRAND': 'Logitech',
         'MODEL': 'M190',
-        'PROCESSOR': '',
-        'RAM': '',
-        'STORAGE': '',
-        'GPU': '',
-        'BASE_PRICE': 150000,
-        'RETAIL_PRICE': 200000,
+        'SPESIFIKASI': '-/-/-/-/-',
+        'WARNA': 'Hitam',
+        'HARGA HPP': 120000,
+        'MODAL PENGEMBANG': 0,
+        'HARGA JUAL': 180000,
         'SERIAL_NUMBER': 'BATCH-M190-001',
         'QTY': 50
       }
@@ -533,7 +572,7 @@ export default function ProductsPage() {
             <table className="w-full text-left text-sm text-muted">
               <thead className="text-xs text-muted uppercase bg-black/20">
                 <tr>
-                  <th className="px-6 py-4">
+                  <th className="px-5 py-4">
                     <input 
                       type="checkbox" 
                       onChange={handleSelectAll} 
@@ -541,26 +580,28 @@ export default function ProductsPage() {
                       className="w-4 h-4 rounded border-gray-600 bg-black/50 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer"
                     />
                   </th>
-                  <th className="px-6 py-4 font-medium">ID Produk</th>
-                  <th className="px-6 py-4 font-medium">Name</th>
-                  <th className="px-6 py-4 font-medium">Specs</th>
-                  <th className="px-6 py-4 font-medium text-center">Total Stok</th>
-                  <th className="px-6 py-4 font-medium text-right">Price</th>
-                  <th className="px-6 py-4 font-medium text-center">Status</th>
-                  <th className="px-6 py-4 font-medium text-center">Actions</th>
+                  <th className="px-5 py-4 font-medium">ID Produk</th>
+                  <th className="px-5 py-4 font-medium">Nama Produk</th>
+                  <th className="px-5 py-4 font-medium">Spesifikasi (Proc/RAM/VGA/Storage/Layar)</th>
+                  <th className="px-5 py-4 font-medium text-center">Warna</th>
+                  <th className="px-5 py-4 font-medium text-right">HPP Supplier</th>
+                  <th className="px-5 py-4 font-medium text-right">Modal QC/Service</th>
+                  <th className="px-5 py-4 font-medium text-right">Harga Jual</th>
+                  <th className="px-5 py-4 font-medium text-center">Stok</th>
+                  <th className="px-5 py-4 font-medium text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-glass-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 opacity-50" />
                       Loading products...
                     </td>
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16 text-center text-gray-500">
+                    <td colSpan={10} className="px-6 py-16 text-center text-gray-500">
                       <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
                       <p className="text-lg">No products found</p>
                     </td>
@@ -575,66 +616,86 @@ export default function ProductsPage() {
                       if (activeTab === 'Service') return cat.includes('service') || cat.includes('jasa');
                       return !cat.includes('laptop') && !cat.includes('unit') && !cat.includes('aksesoris') && !cat.includes('accessories') && !cat.includes('service') && !cat.includes('jasa');
                     })
-                    .map((product) => (
-                    <tr key={product.id} className={`hover:bg-nav-hover transition-colors ${selectedIds.includes(product.id) ? 'bg-blue-500/5' : ''}`}>
-                      <td className="px-6 py-4">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.includes(product.id)}
-                          onChange={() => handleSelectOne(product.id)}
-                          className="w-4 h-4 rounded border-gray-600 bg-black/50 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-6 py-4 font-mono text-muted text-xs">{product.sku || product.id}</td>
-                      <td className="px-6 py-4 font-medium text-white">
-                        {product.name}
-                        <div className="text-xs text-gray-500 font-normal">{product.brand} {product.model}</div>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-muted">
-                        {[product.processor, product.ram, product.storage].filter(Boolean).join(' • ')}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="px-3 py-1 bg-blue-500/10 text-blue-400 font-bold rounded-full">
-                          {product.totalStock || 0}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {product.promoPrice ? (
-                          <div className="flex flex-col items-end">
-                            <span className="font-medium text-green-400">{formatRupiah(product.promoPrice)}</span>
-                            <span className="text-xs text-gray-500 line-through">{formatRupiah(product.sellPrice)}</span>
-                          </div>
-                        ) : (
-                          <span className="font-medium text-blue-400">{formatRupiah(product.sellPrice)}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(product.status)}`}>
-                          {product.status || 'Available'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center items-center gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); setSelectedStockProduct(product); setStockModalOpen(true); }} className="p-2 text-green-400 hover:bg-green-400/10 rounded-lg transition-colors" title="View Stock">
-                            <Package className="w-4 h-4" />
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); handleRowClick(product); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="View Details">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          {['Super Admin', 'Finance', 'Management'].includes(userRole) && (
-                            <>
-                              <button onClick={(e) => { e.stopPropagation(); handleEditClick(product); }} className="p-2 text-yellow-400 hover:bg-yellow-400/10 rounded-lg transition-colors" title="Edit">
-                                <Edit className="w-4 h-4" />
+                    .map((product) => {
+                      const specFormatted = [
+                        product.processor,
+                        product.ram,
+                        product.gpu,
+                        product.storage,
+                        product.screenSize
+                      ].filter(Boolean).join('/');
+
+                      const hpp = Number(product.buyPrice) || 0;
+                      const devCost = Number(product.developmentCost) || 0;
+                      const sellPrice = Number(product.sellPrice) || 0;
+
+                      return (
+                        <tr key={product.id} className={`hover:bg-nav-hover transition-colors ${selectedIds.includes(product.id) ? 'bg-blue-500/5' : ''}`}>
+                          <td className="px-5 py-4">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedIds.includes(product.id)}
+                              onChange={() => handleSelectOne(product.id)}
+                              className="w-4 h-4 rounded border-gray-600 bg-black/50 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer"
+                            />
+                          </td>
+                          <td className="px-5 py-4 font-mono text-muted text-xs">{product.sku || product.id}</td>
+                          <td className="px-5 py-4 font-medium text-white max-w-[200px]">
+                            <div className="truncate font-semibold">{product.name}</div>
+                            <div className="text-xs text-gray-400 font-normal">{product.brand} {product.model}</div>
+                          </td>
+                          <td className="px-5 py-4 text-xs font-mono text-emerald-400 max-w-[220px]">
+                            <div className="truncate" title={specFormatted || '-'}>
+                              {specFormatted || '-'}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-xs text-center text-gray-300">
+                            {product.color || '-'}
+                          </td>
+                          <td className="px-5 py-4 text-right text-xs font-medium text-gray-300">
+                            {formatRupiah(hpp)}
+                          </td>
+                          <td className="px-5 py-4 text-right text-xs font-medium text-amber-400">
+                            {formatRupiah(devCost)}
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            {product.promoPrice ? (
+                              <div className="flex flex-col items-end">
+                                <span className="font-medium text-xs text-green-400">{formatRupiah(product.promoPrice)}</span>
+                                <span className="text-[10px] text-gray-500 line-through">{formatRupiah(sellPrice)}</span>
+                              </div>
+                            ) : (
+                              <span className="font-semibold text-xs text-emerald-400">{formatRupiah(sellPrice)}</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full">
+                              {product.totalStock || 0}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex justify-center items-center gap-1.5">
+                              <button onClick={(e) => { e.stopPropagation(); setSelectedStockProduct(product); setStockModalOpen(true); }} className="p-1.5 text-green-400 hover:bg-green-400/10 rounded-lg transition-colors" title="View Stock">
+                                <Package className="w-4 h-4" />
                               </button>
-                              <button onClick={(e) => { e.stopPropagation(); handleDeleteClick(product.id); }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Delete">
-                                <Trash2 className="w-4 h-4" />
+                              <button onClick={(e) => { e.stopPropagation(); handleRowClick(product); }} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="View Details">
+                                <Eye className="w-4 h-4" />
                               </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                              {['Super Admin', 'Finance', 'Management', 'Warehouse', 'Admin', 'Leader'].includes(userRole) && (
+                                <>
+                                  <button onClick={(e) => { e.stopPropagation(); handleEditClick(product); }} className="p-1.5 text-yellow-400 hover:bg-yellow-400/10 rounded-lg transition-colors" title="Edit">
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteClick(product.id); }} className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Delete">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                 )}
               </tbody>
             </table>

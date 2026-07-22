@@ -160,11 +160,13 @@ model Product {
   storage      String?
   gpu          String?
   screenSize   String?
+  color        String?
   condition    String?
   grade        String?
   completeness String?
   description  String?
   buyPrice     Float
+  developmentCost Float   @default(0)
   sellPrice    Float
   promoPrice   Float?
   rackLocation String? // Warehouse/Store rack location (e.g. A1-Top)

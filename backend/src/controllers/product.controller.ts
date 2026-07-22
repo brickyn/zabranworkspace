@@ -262,8 +262,9 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
         where: { sku: sku },
         update: {
           name: String(masterRow.name),
-          buyPrice: Number(masterRow.basePrice || masterRow.buyPrice || 0),
-          sellPrice: Number(masterRow.retailPrice || masterRow.sellPrice || 0),
+          buyPrice: Number(masterRow.buyPrice || masterRow.basePrice || 0),
+          developmentCost: Number(masterRow.developmentCost || masterRow.modalPengembang || 0),
+          sellPrice: Number(masterRow.sellPrice || masterRow.retailPrice || 0),
           categoryId: category.id,
           brand: masterRow.brand || undefined,
           model: masterRow.model || undefined,
@@ -271,13 +272,16 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
           ram: masterRow.ram || undefined,
           storage: masterRow.storage || undefined,
           gpu: masterRow.gpu || undefined,
+          screenSize: masterRow.screenSize || undefined,
+          color: masterRow.color || undefined,
           deletedAt: null,
         },
         create: {
           sku: sku,
           name: String(masterRow.name),
-          buyPrice: Number(masterRow.basePrice || masterRow.buyPrice || 0),
-          sellPrice: Number(masterRow.retailPrice || masterRow.sellPrice || 0),
+          buyPrice: Number(masterRow.buyPrice || masterRow.basePrice || 0),
+          developmentCost: Number(masterRow.developmentCost || masterRow.modalPengembang || 0),
+          sellPrice: Number(masterRow.sellPrice || masterRow.retailPrice || 0),
           categoryId: category.id,
           branchId: masterRow.branchId || branchId,
           brand: masterRow.brand || undefined,
@@ -286,6 +290,8 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
           ram: masterRow.ram || undefined,
           storage: masterRow.storage || undefined,
           gpu: masterRow.gpu || undefined,
+          screenSize: masterRow.screenSize || undefined,
+          color: masterRow.color || undefined,
         }
       });
       productsUpserted++;
