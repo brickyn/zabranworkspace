@@ -197,8 +197,11 @@ export default function ProductsPage() {
 
       if (jsonData.length === 0) throw new Error('Excel file is empty');
 
-      const warehouse = branches.find((b: any) => b.isWarehouse) || branches.find((b: any) => b.name.toLowerCase().includes('zabran')) || branches[0];
-      const defaultBranchId = (selectedBranch && selectedBranch !== 'all') ? selectedBranch : (warehouse ? warehouse.id : '');
+      const warehouse = branches.find((b: any) => b.isWarehouse) || 
+                        branches.find((b: any) => b.name.toLowerCase().includes('gudang') || b.name.toLowerCase().includes('warehouse')) || 
+                        branches.find((b: any) => b.id === 'branch-001') || 
+                        branches[0];
+      const targetWarehouseBranchId = warehouse ? warehouse.id : 'branch-001';
 
       const formattedProducts = jsonData.map((row) => {
         const spesifikasiRaw = String(row['SPESIFIKASI'] || row['Spesifikasi'] || row['spek'] || row['SPEK'] || '').trim();
@@ -240,7 +243,7 @@ export default function ProductsPage() {
           sellPrice,
           serialNumber: row['SERIAL_NUMBER'] || row['serialNumber'] || row['Serial Number'] || undefined,
           qty: Number(row['QTY'] || row['qty'] || 1),
-          branchId: defaultBranchId,
+          branchId: targetWarehouseBranchId,
         };
       });
 

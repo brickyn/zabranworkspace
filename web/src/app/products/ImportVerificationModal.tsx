@@ -51,11 +51,16 @@ export default function ImportVerificationModal({
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-                Verifikasi & Konfirmasi Import Data Produk
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-extrabold text-white">
+                  Verifikasi & Konfirmasi Import Data Produk
+                </h2>
+                <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-full text-xs font-bold">
+                  Lokasi Inbound: Gudang Utama (Warehouse)
+                </span>
+              </div>
               <p className="text-xs text-muted mt-0.5">
-                Periksa detail laptop dan stok di bawah ini sebelum memproses masuk ke database inventaris real.
+                Semua barang import otomatis masuk ke Gudang Utama (Warehouse) sebelum didistribusikan/transfer ke cabang.
               </p>
             </div>
           </div>
