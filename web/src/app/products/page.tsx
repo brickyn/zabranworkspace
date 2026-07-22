@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import ProductForm from './ProductForm';
 import ProductDetailModal from './ProductDetailModal';
+import ImportVerificationModal from './ImportVerificationModal';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -25,9 +26,11 @@ export default function ProductsPage() {
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [selectedStockProduct, setSelectedStockProduct] = useState<any>(null);
   
-  // Bulk Import state
+  // Bulk Import & Verification state
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<{success: boolean, message: string} | null>(null);
+  const [importVerificationOpen, setImportVerificationOpen] = useState(false);
+  const [parsedPreviewProducts, setParsedPreviewProducts] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -105,70 +108,71 @@ export default function ProductsPage() {
 
   const handleEditClick = (product: any) => {
     setSelectedProduct(product);
-    setDetailOpen(false);
     setFormOpen(true);
   };
 
   const handleDeleteClick = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+    if (confirm('Are you sure you want to delete this product?')) {
       try {
         await apiClient.delete(`/products/${id}`);
-        toast.success('Product deleted successfully');
+        toast.success('Product deleted');
         fetchProducts();
-      } catch (error) {
-        toast.error('Failed to delete product.');
+      } catch (error: any) {
+        toast.error(error.response?.data?.error || 'Failed to delete product');
       }
     }
   };
 
+  const handleFormClose = (saved: boolean) => {
+    setFormOpen(false);
+    setSelectedProduct(undefined);
+    if (saved) fetchProducts();
+  };
+
   const handleBatchUpdate = async () => {
     if (selectedIds.length === 0) return;
-    
-    const updateData: any = {};
-    if (batchStatus) updateData.status = batchStatus;
-    if (batchPromoPrice) updateData.promoPrice = Number(batchPromoPrice);
-
-    if (Object.keys(updateData).length === 0) {
-      toast.error('Please set a status or promo price to update.');
+    if (!batchStatus && !batchPromoPrice) {
+      toast.error('Pilih status baru atau masukkan harga promo');
       return;
     }
 
-    if (window.confirm(`Are you sure you want to update ${selectedIds.length} products?`)) {
-      setIsBatchUpdating(true);
-      try {
-        await apiClient.put('/products/bulk', {
-          ids: selectedIds,
-          updateData
-        });
+    setIsBatchUpdating(true);
+    try {
+      const payload: any = { ids: selectedIds };
+      if (batchStatus) payload.status = batchStatus;
+      if (batchPromoPrice !== '') payload.promoPrice = Number(batchPromoPrice);
+
+      const res = await apiClient.put('/products/bulk', payload);
+      if (res.data.success) {
+        toast.success(res.data.message);
         setSelectedIds([]);
         setBatchStatus('');
         setBatchPromoPrice('');
-        toast.success(`Successfully updated ${selectedIds.length} products`);
         fetchProducts();
-      } catch (error) {
-        toast.error('Failed to bulk update products.');
-      } finally {
-        setIsBatchUpdating(false);
       }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Gagal memperbarui produk secara massal');
+    } finally {
+      setIsBatchUpdating(false);
     }
   };
 
   const handleBatchDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} products?`)) {
-      setIsBatchUpdating(true);
-      try {
-        await apiClient.delete('/products/bulk', {
-          data: { ids: selectedIds }
-        });
+    if (!confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} produk yang dipilih?`)) return;
+
+    setIsBatchUpdating(true);
+    try {
+      const res = await apiClient.delete('/products/bulk', { data: { ids: selectedIds } });
+      if (res.data.success) {
+        toast.success(res.data.message);
         setSelectedIds([]);
-        toast.success(`Successfully deleted ${selectedIds.length} products`);
         fetchProducts();
-      } catch (error) {
-        toast.error('Failed to batch delete products.');
-      } finally {
-        setIsBatchUpdating(false);
       }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Gagal menghapus produk secara massal');
+    } finally {
+      setIsBatchUpdating(false);
     }
   };
 
@@ -179,30 +183,10 @@ export default function ProductsPage() {
     XLSX.writeFile(workbook, "Inventory_Export.xlsx");
   };
 
-  const handleFormClose = (saved: boolean) => {
-    setFormOpen(false);
-    if (saved) fetchProducts();
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'available': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'sold': return 'bg-gray-500/20 text-muted border-gray-500/30';
-      case 'reserved': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'service': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      default: return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    }
-  };
-
-  const formatRupiah = (number: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number || 0);
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
     setImportResult(null);
 
     try {
@@ -260,20 +244,38 @@ export default function ProductsPage() {
         };
       });
 
-      const res = await apiClient.post('/products/bulk', { products: formattedProducts });
+      setParsedPreviewProducts(formattedProducts);
+      setImportVerificationOpen(true);
+    } catch (error: any) {
+      let errMessage = error.response?.data?.error || error.message || 'Gagal membaca file Excel';
+      setImportResult({ success: false, message: errMessage });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirmImport = async (finalProducts: any[]) => {
+    if (finalProducts.length === 0) return;
+    setIsImporting(true);
+    setImportResult(null);
+
+    try {
+      const res = await apiClient.post('/products/bulk', { products: finalProducts });
       if (res.data.success) {
         setImportResult({ success: true, message: res.data.message });
-        fetchProducts(); 
+        toast.success(res.data.message || 'Import stok berhasil');
+        setImportVerificationOpen(false);
+        fetchProducts();
       }
     } catch (error: any) {
-      let errMessage = error.response?.data?.error || error.message || 'Failed to import Excel';
+      let errMessage = error.response?.data?.error || error.message || 'Gagal mengimpor data ke server';
       if (error.response?.data?.details && Array.isArray(error.response.data.details)) {
         errMessage += `: ${error.response.data.details.join(', ')}`;
       }
       setImportResult({ success: false, message: errMessage });
+      toast.error(errMessage);
     } finally {
       setIsImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -352,6 +354,10 @@ export default function ProductsPage() {
   }, 0);
 
   const canViewCost = ['Super Admin', 'Finance', 'Management', 'Warehouse', 'Admin', 'Leader'].includes(userRole);
+
+  const formatRupiah = (number: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number || 0);
+  };
 
   return (
     <DashboardLayout>
@@ -779,6 +785,14 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      <ImportVerificationModal
+        open={importVerificationOpen}
+        onClose={() => setImportVerificationOpen(false)}
+        onConfirm={handleConfirmImport}
+        initialProducts={parsedPreviewProducts}
+        isSubmitting={isImporting}
+      />
     </DashboardLayout>
   );
 }

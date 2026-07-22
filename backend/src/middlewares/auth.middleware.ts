@@ -57,12 +57,14 @@ export const authorizeRole = (roles: string[]) => {
 };
 
 const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
-  Warehouse: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete'],
+  Warehouse: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer'],
+  'Warehouse Admin': ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer'],
+  Admin: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer', 'Dashboard.View'],
   Cashier: ['POS.View', 'POS.Create', 'Inventory.View', 'CRM.View'],
-  Leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Laporan.View', 'CRM.View'],
+  Leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'CRM.View'],
   Manager: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View'],
   Management: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View', 'Users.View'],
-  Finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View']
+  Finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit']
 };
 
 export const requirePermission = (permission: string) => {
@@ -72,14 +74,22 @@ export const requirePermission = (permission: string) => {
       return;
     }
     
+    const userRole = (req.user.role || '').trim();
+
     // System Admins override
-    if (req.user.role === 'Super Admin' || req.user.role === 'Owner') {
+    if (userRole.toLowerCase() === 'super admin' || userRole.toLowerCase() === 'owner') {
       next();
       return;
     }
 
     const userPerms = req.user.permissions || [];
-    const defaultPerms = ROLE_DEFAULT_PERMISSIONS[req.user.role] || [];
+    let defaultPerms: string[] = [];
+    for (const [rKey, pList] of Object.entries(ROLE_DEFAULT_PERMISSIONS)) {
+      if (rKey.toLowerCase() === userRole.toLowerCase() || userRole.toLowerCase().includes(rKey.toLowerCase())) {
+        defaultPerms = [...defaultPerms, ...pList];
+      }
+    }
+
     const permPrefix = permission.split('.')[0];
 
     const hasPerm = userPerms.includes(permission) || 
