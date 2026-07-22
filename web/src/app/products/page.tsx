@@ -288,18 +288,42 @@ export default function ProductsPage() {
     XLSX.writeFile(wb, "Zabran_Stock_Init_Template.xlsx");
   };
 
+  const warehouseStock = products.reduce((total, p) => {
+    if (Array.isArray(p.items) && p.items.length > 0) {
+      const wCount = p.items.filter((i: any) => 
+        i.branchId === 'branch-001' || 
+        i.branch?.isWarehouse || 
+        (i.branch?.name && i.branch.name.toLowerCase().includes('gudang'))
+      ).reduce((acc: number, item: any) => acc + (item.qty || 1), 0);
+      return total + wCount;
+    }
+    return total + (p.branchId === 'branch-001' || !p.branchId ? (p.totalStock || 0) : 0);
+  }, 0);
+
+  const cabangStock = products.reduce((total, p) => {
+    if (Array.isArray(p.items) && p.items.length > 0) {
+      const cCount = p.items.filter((i: any) => 
+        i.branchId !== 'branch-001' && 
+        !i.branch?.isWarehouse && 
+        !(i.branch?.name && i.branch.name.toLowerCase().includes('gudang'))
+      ).reduce((acc: number, item: any) => acc + (item.qty || 1), 0);
+      return total + cCount;
+    }
+    return total + (p.branchId && p.branchId !== 'branch-001' ? (p.totalStock || 0) : 0);
+  }, 0);
+
   return (
     <DashboardLayout>
       <div className="h-full flex flex-col gap-6">
         
         {/* Dedicated Inventory Overview Banner for Operational / Warehouse */}
-        <div className="bg-gradient-to-r from-emerald-950/40 via-teal-900/30 to-blue-950/40 p-6 rounded-3xl border border-emerald-500/20 backdrop-blur-md shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="bg-gradient-to-r from-emerald-950/40 via-teal-900/30 to-blue-950/40 p-6 rounded-3xl border border-emerald-500/20 backdrop-blur-md shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
-              <Package className="w-6 h-6" />
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold shrink-0">
+              <Package className="w-7 h-7" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-extrabold text-white">Overview Operasional Inventaris</h1>
                 {userRole === 'Warehouse' && (
                   <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-semibold">
@@ -310,10 +334,19 @@ export default function ProductsPage() {
               <p className="text-muted text-sm mt-0.5">Pusat kontrol katalog produk, manajemen stok barang, dan transfer inventaris antar cabang.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2 bg-glass-bg/60 rounded-xl border border-glass-border text-right">
-              <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Total Item Produk</p>
-              <p className="text-lg font-bold text-emerald-400">{products.length} Katalog</p>
+          
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="px-5 py-3 bg-glass-bg/80 rounded-2xl border border-emerald-500/30 shadow-inner flex-1 min-w-[150px]">
+              <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-0.5">Stok di Warehouse</p>
+              <p className="text-xl font-extrabold text-white">{warehouseStock} <span className="text-xs font-normal text-muted">Unit</span></p>
+            </div>
+            <div className="px-5 py-3 bg-glass-bg/80 rounded-2xl border border-blue-500/30 shadow-inner flex-1 min-w-[150px]">
+              <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-0.5">Stok di Cabang</p>
+              <p className="text-xl font-extrabold text-white">{cabangStock} <span className="text-xs font-normal text-muted">Unit</span></p>
+            </div>
+            <div className="px-5 py-3 bg-glass-bg/80 rounded-2xl border border-glass-border shadow-inner flex-1 min-w-[130px]">
+              <p className="text-[10px] text-muted font-bold uppercase tracking-wider mb-0.5">Total Katalog</p>
+              <p className="text-xl font-extrabold text-white">{products.length} <span className="text-xs font-normal text-muted">Item</span></p>
             </div>
           </div>
         </div>

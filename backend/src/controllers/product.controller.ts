@@ -34,7 +34,8 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
         include: {
           category: true,
           items: {
-            where: itemsWhere
+            where: itemsWhere,
+            include: { branch: true }
           }
         }
       }),

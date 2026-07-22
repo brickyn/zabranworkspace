@@ -451,14 +451,25 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             {/* Notifications */}
             <NotificationCenter />
 
-            {/* User Profile */}
-            <div className="hidden sm:flex items-center gap-3 bg-glass-bg px-3 py-1.5 rounded-full border border-glass-border shadow-inner">
-              <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                {user.name.charAt(0)}
+            {/* User Profile & Logout */}
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-3 bg-glass-bg px-3.5 py-1.5 rounded-full border border-glass-border shadow-inner">
+                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                  {user.name.charAt(0)}
+                </div>
+                <div className="text-right pr-1">
+                  <p className="text-xs font-bold text-foreground leading-tight">{user.name}</p>
+                  <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold leading-none">{user.role}</p>
+                </div>
               </div>
-              <div className="text-right pr-2">
-                <p className="text-xs font-bold text-foreground leading-tight">{user.name}</p>
-              </div>
+              <button 
+                onClick={handleLogout}
+                className="p-2.5 bg-glass-bg hover:bg-red-500/10 text-muted hover:text-red-500 rounded-full border border-glass-border hover:border-red-500/30 shadow-sm transition-all flex items-center justify-center gap-1.5"
+                title="Keluar / Log Out"
+              >
+                <LogOut className="w-4 h-4 text-red-400" />
+                <span className="hidden md:inline text-xs font-semibold text-red-400">Logout</span>
+              </button>
             </div>
           </div>
         </div>
