@@ -42,7 +42,7 @@ export default function POSPage() {
   ]);
 
   const { 
-    items, addItem, removeItem, updateItemDiscount, updateItemPrice,
+    items, addItem, removeItem, updateQuantity, updateItemDiscount, updateItemPrice,
     customerName, customerPhone, setCustomerInfo,
     paymentMethod, setPaymentMethod,
     getSubtotal, getTotal, clearCart,

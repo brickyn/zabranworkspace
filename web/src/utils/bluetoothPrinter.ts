@@ -140,7 +140,8 @@ export const generateReceiptBuffer = (data: TransactionPrintData): Uint8Array =>
  */
 export const connectAndPrint = async (data: TransactionPrintData): Promise<{ success: boolean; error?: string }> => {
   try {
-    if (!navigator.bluetooth) {
+    const nav = navigator as any;
+    if (!nav.bluetooth) {
       return { 
         success: false, 
         error: 'Web Bluetooth API tidak didukung di browser ini. Gunakan Chrome di Desktop atau Android.' 
@@ -148,7 +149,7 @@ export const connectAndPrint = async (data: TransactionPrintData): Promise<{ suc
     }
 
     // Request Bluetooth Device with BLE SPP / Generic Printer UUIDs
-    const device = await navigator.bluetooth.requestDevice({
+    const device = await nav.bluetooth.requestDevice({
       filters: [
         { services: ['000018f0-0000-1000-8000-00805f9b34fb'] }, // Standard BLE printer service
       ],
@@ -182,7 +183,7 @@ export const connectAndPrint = async (data: TransactionPrintData): Promise<{ suc
 
     // Find a writable characteristic
     const characteristics = await service.getCharacteristics();
-    const writeCharacteristic = characteristics.find(c => 
+    const writeCharacteristic = characteristics.find((c: any) => 
       c.properties.write || c.properties.writeWithoutResponse
     );
 
@@ -300,11 +301,12 @@ export const printEndOfDay = async (
   variances: { cash: number; qris: number; transfer: number }
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    if (!navigator.bluetooth) {
+    const nav = navigator as any;
+    if (!nav.bluetooth) {
       return { success: false, error: 'Web Bluetooth API tidak didukung di browser ini.' };
     }
 
-    const device = await navigator.bluetooth.requestDevice({
+    const device = await nav.bluetooth.requestDevice({
       filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
       optionalServices: [
         '000018f0-0000-1000-8000-00805f9b34fb', 
@@ -326,7 +328,7 @@ export const printEndOfDay = async (
     }
 
     const characteristics = await service.getCharacteristics();
-    const writeCharacteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
+    const writeCharacteristic = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse);
 
     if (!writeCharacteristic) return { success: false, error: 'Karakteristik Write tidak ditemukan.' };
 

@@ -6,7 +6,18 @@ interface DeliveryOrderItem {
   id: string;
   status: string;
   notes?: string | null;
-  product: {
+  qty?: number;
+  productItem?: {
+    sn?: string;
+    product?: {
+      id: string;
+      name: string;
+      brand?: string | null;
+      model?: string | null;
+      sku?: string | null;
+    };
+  };
+  product?: {
     id: string;
     name: string;
     brand?: string | null;
