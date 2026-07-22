@@ -16,6 +16,20 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
   const totalModal = (Number(product.buyPrice) || 0) + (Number(product.developmentCost) || 0);
   const marginProfit = (Number(product.sellPrice) || 0) - totalModal;
 
+  const formatRupiah = (number: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number || 0);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'available': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'sold': return 'bg-gray-500/20 text-muted border-gray-500/30';
+      case 'reserved': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'service': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default: return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+    }
+  };
+
   const formattedSpecStr = [
     product.processor || '-',
     product.ram || '-',
