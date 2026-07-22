@@ -212,7 +212,7 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
             </div>
           </div>
 
-          {!isAdmin && (
+          {!canManage && (
             <div className="bg-glass-bg/50 p-5 rounded-2xl border border-glass-border flex justify-between items-center mt-4">
               <span className="text-muted">Harga Jual</span>
               <div className="text-right">
