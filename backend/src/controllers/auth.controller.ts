@@ -99,8 +99,18 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     console.log('[LOGIN] Generating JWT');
 
-    // Resolve permissions from main role and active delegations
+    // Resolve permissions from DB permissions field, main role, and active delegations
     const permissionSet = new Set<string>();
+    if (user.permissions) {
+      try {
+        const rawPerms = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+        if (Array.isArray(rawPerms)) {
+          rawPerms.forEach((p: string) => permissionSet.add(p));
+        }
+      } catch (e) {
+        console.error('Failed to parse user permissions JSON:', e);
+      }
+    }
     if (user.userRole) {
       user.userRole.permissions.forEach(rp => permissionSet.add(rp.permission.action));
     }
@@ -109,19 +119,25 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
     
     const resolvedRole = user.userRole?.name || user.role;
+    const rLower = (resolvedRole || '').trim().toLowerCase();
     
-    // Default fallback permissions if DB permissions relation is not linked
     const ROLE_DEFAULTS: Record<string, string[]> = {
-      Warehouse: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete'],
-      Cashier: ['POS.View', 'POS.Create', 'Inventory.View', 'CRM.View'],
-      Leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Laporan.View', 'CRM.View'],
-      Manager: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View'],
-      Management: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View', 'Users.View'],
-      Finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View']
+      warehouse: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer'],
+      'warehouse admin': ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer'],
+      'admin warehouse': ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer'],
+      admin: ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer', 'Dashboard.View', 'Users.View'],
+      'super admin': ['Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Inventory.Receive', 'Inventory.Transfer', 'Dashboard.View', 'Users.View', 'POS.View', 'POS.Create', 'POS.Void', 'Laporan.View', 'CRM.View', 'Finance.View'],
+      cashier: ['POS.View', 'POS.Create', 'Inventory.View', 'CRM.View'],
+      leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'CRM.View'],
+      manager: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View'],
+      management: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View', 'Users.View'],
+      finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit']
     };
 
-    if (permissionSet.size === 0 && ROLE_DEFAULTS[resolvedRole]) {
-      ROLE_DEFAULTS[resolvedRole].forEach(p => permissionSet.add(p));
+    for (const [key, perms] of Object.entries(ROLE_DEFAULTS)) {
+      if (rLower === key || rLower.includes(key) || key.includes(rLower)) {
+        perms.forEach(p => permissionSet.add(p));
+      }
     }
 
     const compiledPermissions = Array.from(permissionSet);
