@@ -13,7 +13,7 @@ const ROLE_REDIRECT: Record<string, string> = {
   'Manager': '/dashboard',
   'Admin': '/dashboard',
   'Finance': '/finance',
-  'Cashier': '/pos',
+  'Cashier': '/zpos/new-transaction',
   'Warehouse': '/products',
   'Teknisi': '/service-center',
 };
@@ -37,9 +37,14 @@ export default function LoginPage() {
         const { token, user } = res.data.data;
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
-
-        // Master Hub redirect for all roles
-        router.push('/hub');
+        if (user.role === 'Cashier') {
+          router.push('/zpos/new-transaction');
+        } else if (user.role === 'Leader') {
+          router.push('/zpos/dashboard');
+        } else {
+          // Master Hub redirect for ERP roles
+          router.push('/hub');
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Email atau password salah. Silakan coba lagi.');

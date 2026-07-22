@@ -85,7 +85,7 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
               <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Nama Barang</th>
               <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px', width: '80px' }}>ID / Kode</th>
               <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px', width: '120px' }}>Serial Number</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', fontSize: '11px', width: '70px' }}>Kondisi</th>
+              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', fontSize: '11px', width: '70px' }}>Qty</th>
               <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', fontSize: '11px', width: '70px' }}>Diterima</th>
               <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', fontSize: '11px', width: '70px' }}>Ditolak</th>
               <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px', width: '120px' }}>Alasan Ditolak</th>
@@ -96,12 +96,12 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
               <tr key={item.id} style={{ backgroundColor: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
                 <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '11px' }}>{idx + 1}</td>
                 <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '11px' }}>
-                  <strong>{item.product.brand} {item.product.name}</strong>
-                  {item.product.model && <span style={{ color: '#666', display: 'block', fontSize: '10px' }}>{item.product.model}</span>}
+                  <strong>{item.productItem?.product?.brand} {item.productItem?.product?.name}</strong>
+                  {item.productItem?.product?.model && <span style={{ color: '#666', display: 'block', fontSize: '10px' }}>{item.productItem?.product?.model}</span>}
                 </td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '10px', fontFamily: 'monospace' }}>{item.product.id}</td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '10px', fontFamily: 'monospace' }}>{item.product.serialNumber || '-'}</td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '11px' }}>{item.product.condition || item.product.grade || '-'}</td>
+                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '10px', fontFamily: 'monospace' }}>{item.productItem?.product?.sku || item.productItem?.product?.id}</td>
+                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '10px', fontFamily: 'monospace' }}>{item.productItem?.sn || '-'}</td>
+                <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '11px' }}>{item.qty}</td>
                 <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '16px' }}>
                   {item.status === 'Received' ? '✓' : '☐'}
                 </td>

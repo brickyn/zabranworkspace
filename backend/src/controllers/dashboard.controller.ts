@@ -34,7 +34,7 @@ export const getDashboardMetrics = async (req: Request, res: Response): Promise<
       include: {
         items: {
           include: {
-            product: true
+            productItem: { include: { product: true } }
           }
         }
       }

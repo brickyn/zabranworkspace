@@ -54,3 +54,16 @@ next-env.d.ts
 
 # Prisma
 /generated/prisma
+
+# macOS & Temp/NoSync
+*.nosync
+*.nosync/
+*.txt
+backend/test*.js
+backend/test.js
+backend/db-*.js
+backend/get-*.js
+backend/fix-db.js
+backend/cleanup.js
+
+

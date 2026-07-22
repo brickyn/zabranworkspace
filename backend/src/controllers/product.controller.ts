@@ -17,55 +17,50 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
       deletedAt: null // Exclude soft-deleted products
     };
     
-    // Automatically restrict to user's branch if they are not higher management
-    if (user && !['Super Admin', 'Management', 'Manager', 'Finance'].includes(user.role)) {
-      whereClause.branchId = user.branchId;
-    } else if (branchId && branchId !== 'all') {
-      whereClause.branchId = branchId as string;
-    }
-    
-    if (status) whereClause.status = status as string;
-    if (brand) whereClause.brand = brand as string;
-    if (search) {
-      whereClause.OR = [
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { id: { contains: search as string, mode: 'insensitive' } },
-        { serialNumber: { contains: search as string, mode: 'insensitive' } },
-        { brand: { contains: search as string, mode: 'insensitive' } },
-        { model: { contains: search as string, mode: 'insensitive' } },
-      ];
-    }
-
-    // Branch Isolation Logic
-    if (req.user && ['Cashier', 'Leader'].includes(req.user.role) && req.user.branchId) {
-      whereClause.branchId = req.user.branchId;
+    // In Master-Detail architecture, Product is universal master data.
+    // We remove branchId filters from the main product where clause because branchId is on ProductItem.
+    // But we filter the included items so totalStock reflects the selected branch.
+    const itemsWhere: any = { status: 'AVAILABLE' };
+    if (branchId && branchId !== 'all') {
+      itemsWhere.branchId = String(branchId);
     }
 
     const [products, total, categoryCounts] = await Promise.all([
       prisma.product.findMany({
         where: whereClause,
-        include: { branch: true },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          category: true,
+          items: {
+            where: itemsWhere
+          }
+        }
       }),
       prisma.product.count({ where: whereClause }),
       prisma.product.groupBy({
-        by: ['category'],
+        by: ['categoryId'],
         where: whereClause,
         _count: { id: true }
       })
     ]);
     
     const summary = categoryCounts.reduce((acc, curr) => {
-      const cat = curr.category || 'Laptop';
+      const cat = curr.categoryId || 'Uncategorized';
       acc[cat] = (acc[cat] || 0) + curr._count.id;
       return acc;
     }, {} as Record<string, number>);
+
+    const mappedProducts = products.map(p => ({
+      ...p,
+      categoryName: p.category?.name || 'Uncategorized',
+      totalStock: p.items.reduce((sum, item) => sum + (item.qty || 1), 0)
+    }));
     
     res.json({ 
       success: true, 
-      data: products,
+      data: mappedProducts,
       summary,
       pagination: { page: pageNum, pageSize: limit, total, totalPages: Math.ceil(total / limit) }
     });
@@ -214,59 +209,108 @@ export const importBulkProducts = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    // Process and validate all products
-    const validProducts = [];
-    const errors = [];
+    // 1. Find or Create Dummy Supplier for Initialization
+    let initSupplier = await prisma.supplier.findFirst({ where: { code: 'INIT' } });
+    if (!initSupplier) {
+      initSupplier = await prisma.supplier.create({
+        data: { code: 'INIT', name: 'Stock Initialization' }
+      });
+    }
 
-    for (let i = 0; i < products.length; i++) {
-      try {
-        const validated = createProductSchema.parse(products[i]);
-        validProducts.push(validated);
-      } catch (err) {
-        errors.push({ row: i + 1, error: err });
+    const branchId = products[0].branchId || req.user?.branchId;
+    if (!branchId) {
+      res.status(400).json({ success: false, error: 'Branch ID is required for stock initialization.' });
+      return;
+    }
+
+    // 2. Create Inbound Batch
+    const inboundBatch = await prisma.inboundBatch.create({
+      data: {
+        supplierId: initSupplier.id,
+        receivedById: req.user!.id,
+        branchId: branchId,
+        inboundDate: new Date()
       }
-    }
-
-    if (errors.length > 0) {
-      res.status(400).json({ success: false, error: 'Validation failed for some rows', details: errors });
-      return;
-    }
-
-    // Check for duplicate IDs in the incoming array itself
-    const idsInArray = validProducts.map(p => p.id);
-    const uniqueIds = new Set(idsInArray);
-    if (uniqueIds.size !== idsInArray.length) {
-      const duplicatesInArray = idsInArray.filter((item, index) => idsInArray.indexOf(item) !== index);
-      res.status(400).json({ 
-        success: false, 
-        error: 'Terdapat ID Produk ganda di dalam file yang diunggah.', 
-        details: Array.from(new Set(duplicatesInArray)) 
-      });
-      return;
-    }
-
-    // Check for duplicate IDs in the database
-    const existingProducts = await prisma.product.findMany({
-      where: { id: { in: idsInArray } },
-      select: { id: true }
     });
 
-    if (existingProducts.length > 0) {
-      res.status(400).json({
-        success: false,
-        error: 'ID Produk berikut sudah terdaftar di database (Duplicate ID).',
-        details: existingProducts.map(p => p.id)
-      });
-      return;
+    // 3. Group by SKU
+    const skuGroups: Record<string, any[]> = {};
+    for (const row of products) {
+      const sku = row.sku || row.id;
+      if (!sku) continue;
+      if (!skuGroups[sku]) skuGroups[sku] = [];
+      skuGroups[sku].push(row);
     }
 
-    // Insert all products since there are no duplicates
-    const results = await prisma.product.createMany({
-      data: validProducts,
-      skipDuplicates: false, // We already checked for duplicates
-    });
+    let itemsCreated = 0;
+    let productsUpserted = 0;
 
-    res.status(200).json({ success: true, message: `${results.count} products imported successfully` });
+    // 4. Process each SKU Group
+    for (const [sku, rows] of Object.entries(skuGroups)) {
+      const masterRow = rows[0]; // Take master data from the first row
+
+      // Find or Create Category
+      const catName = masterRow.category || 'Uncategorized';
+      let category = await prisma.category.findFirst({ where: { name: catName } });
+      if (!category) {
+        category = await prisma.category.create({ data: { name: catName } });
+      }
+
+      // Upsert Product (Master Data)
+      const product = await prisma.product.upsert({
+        where: { sku: sku },
+        update: {
+          name: String(masterRow.name),
+          buyPrice: Number(masterRow.basePrice || masterRow.buyPrice || 0),
+          sellPrice: Number(masterRow.retailPrice || masterRow.sellPrice || 0),
+          categoryId: category.id,
+          brand: masterRow.brand || undefined,
+          model: masterRow.model || undefined,
+          processor: masterRow.processor || undefined,
+          ram: masterRow.ram || undefined,
+          storage: masterRow.storage || undefined,
+          gpu: masterRow.gpu || undefined,
+          deletedAt: null,
+        },
+        create: {
+          sku: sku,
+          name: String(masterRow.name),
+          buyPrice: Number(masterRow.basePrice || masterRow.buyPrice || 0),
+          sellPrice: Number(masterRow.retailPrice || masterRow.sellPrice || 0),
+          categoryId: category.id,
+          branchId: masterRow.branchId || branchId,
+          brand: masterRow.brand || undefined,
+          model: masterRow.model || undefined,
+          processor: masterRow.processor || undefined,
+          ram: masterRow.ram || undefined,
+          storage: masterRow.storage || undefined,
+          gpu: masterRow.gpu || undefined,
+        }
+      });
+      productsUpserted++;
+
+      // Create Product Items (Physical Stock)
+      const itemData = rows.map((row, idx) => ({
+        sn: row.serialNumber || `${sku}-BATCH-${Date.now()}-${idx}`,
+        qty: Number(row.qty || 1),
+        status: 'AVAILABLE',
+        productId: product.id,
+        inboundBatchId: inboundBatch.id,
+        branchId: row.branchId || branchId
+      }));
+
+      // Insert ignoring duplicates (if SN already exists)
+      const createdItems = await prisma.productItem.createMany({
+        data: itemData,
+        skipDuplicates: true
+      });
+      itemsCreated += createdItems.count;
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: `Berhasil mengimpor ${productsUpserted} Produk Master dan ${itemsCreated} Stok Fisik.` 
+    });
   } catch (error) {
     console.error("Bulk Import Error:", error);
     res.status(500).json({ success: false, error: 'Failed to import products', details: (error as Error).message || error });

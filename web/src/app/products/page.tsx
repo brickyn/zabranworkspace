@@ -21,6 +21,10 @@ export default function ProductsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(undefined);
   
+  // Stock Viewer state
+  const [stockModalOpen, setStockModalOpen] = useState(false);
+  const [selectedStockProduct, setSelectedStockProduct] = useState<any>(null);
+  
   // Bulk Import state
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<{success: boolean, message: string} | null>(null);
@@ -210,23 +214,24 @@ export default function ProductsPage() {
       if (jsonData.length === 0) throw new Error('Excel file is empty');
 
       const warehouse = branches.find((b: any) => b.isWarehouse) || branches.find((b: any) => b.name.toLowerCase().includes('zabran')) || branches[0];
-      const defaultBranchId = warehouse ? warehouse.id : '';
+      // Jika user memilih cabang spesifik di dropdown, gunakan cabang tersebut. Jika 'all', paksa masuk ke Gudang Pusat
+      const defaultBranchId = (selectedBranch && selectedBranch !== 'all') ? selectedBranch : (warehouse ? warehouse.id : '');
 
       const formattedProducts = jsonData.map((row) => ({
-        id: String(row['ID Produk'] || row['id'] || ''),
-        serialNumber: row['Serial Number'] || row['serialNumber'] || undefined,
-        name: String(row['Name'] || row['name']),
-        brand: row['Brand'] || row['brand'] || undefined,
-        model: row['Model'] || row['model'] || undefined,
-        category: row['Category'] || row['category'] || undefined,
-        processor: row['Processor'] || row['processor'] || undefined,
+        sku: String(row['SKU'] || row['sku'] || row['ID Produk'] || row['id'] || ''),
+        name: String(row['NAME'] || row['name'] || row['Name'] || ''),
+        category: String(row['CATEGORY'] || row['category'] || row['Category'] || ''),
+        brand: row['BRAND'] || row['brand'] || row['Brand'] || undefined,
+        model: row['MODEL'] || row['model'] || row['Model'] || undefined,
+        processor: row['PROCESSOR'] || row['processor'] || row['Processor'] || undefined,
         ram: row['RAM'] || row['ram'] || undefined,
-        storage: row['Storage'] || row['storage'] || undefined,
+        storage: row['STORAGE'] || row['storage'] || row['Storage'] || undefined,
         gpu: row['GPU'] || row['gpu'] || undefined,
-        buyPrice: Number(row['Buy Price'] || row['buyPrice'] || 0),
-        sellPrice: Number(row['Sell Price'] || row['sellPrice'] || 0),
-        branchId: selectedBranch !== 'all' ? selectedBranch : defaultBranchId,
-        status: row['Status'] || row['status'] || 'Available',
+        basePrice: Number(row['BASE_PRICE'] || row['basePrice'] || row['Buy Price'] || 0),
+        retailPrice: Number(row['RETAIL_PRICE'] || row['retailPrice'] || row['Sell Price'] || 0),
+        serialNumber: row['SERIAL_NUMBER'] || row['serialNumber'] || row['Serial Number'] || undefined,
+        qty: Number(row['QTY'] || row['qty'] || 1),
+        branchId: defaultBranchId, // Selalu masuk ke gudang pusat terlebih dahulu sesuai workflow
       }));
 
       const res = await apiClient.post('/products/bulk', { products: formattedProducts });
@@ -249,28 +254,39 @@ export default function ProductsPage() {
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([
       {
-        'ID Produk': 'GH-260707-001',
-        'Serial Number': 'SN12345678',
-        'Name': 'Laptop Gaming ASUS',
-        'Brand': 'ASUS',
-        'Model': 'ROG Strix',
-        'Category': 'Laptop',
-        'Processor': 'Intel i7',
+        'SKU': 'LP-ASUS-001',
+        'NAME': 'Laptop Gaming ASUS ROG',
+        'CATEGORY': 'Laptop',
+        'BRAND': 'ASUS',
+        'MODEL': 'ROG Strix G15',
+        'PROCESSOR': 'Intel Core i7-10750H',
         'RAM': '16GB',
-        'Storage': '512GB SSD',
-        'GPU': 'RTX 3060',
-        'Buy Price': 10000000,
-        'Sell Price': 12000000,
-        'Branch ID': 'GH-PST',
-        'Nama Store': 'Pusat',
-        'Nama Brand': 'Gadget House',
-        'Warehouse': 'Ya',
-        'Status': 'Available'
+        'STORAGE': '512GB SSD',
+        'GPU': 'NVIDIA RTX 2060',
+        'BASE_PRICE': 10000000,
+        'RETAIL_PRICE': 12000000,
+        'SERIAL_NUMBER': 'SN-ROG-123',
+        'QTY': 1
+      },
+      {
+        'SKU': 'ACC-MS-002',
+        'NAME': 'Mouse Wireless Logitech M190',
+        'CATEGORY': 'Aksesoris',
+        'BRAND': 'Logitech',
+        'MODEL': 'M190',
+        'PROCESSOR': '',
+        'RAM': '',
+        'STORAGE': '',
+        'GPU': '',
+        'BASE_PRICE': 150000,
+        'RETAIL_PRICE': 200000,
+        'SERIAL_NUMBER': 'BATCH-M190-001',
+        'QTY': 50
       }
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, "Zabran_Product_Import_Template.xlsx");
+    XLSX.writeFile(wb, "Zabran_Stock_Init_Template.xlsx");
   };
 
   return (
@@ -470,7 +486,7 @@ export default function ProductsPage() {
                   <th className="px-6 py-4 font-medium">ID Produk</th>
                   <th className="px-6 py-4 font-medium">Name</th>
                   <th className="px-6 py-4 font-medium">Specs</th>
-                  <th className="px-6 py-4 font-medium">Serial Number</th>
+                  <th className="px-6 py-4 font-medium text-center">Total Stok</th>
                   <th className="px-6 py-4 font-medium text-right">Price</th>
                   <th className="px-6 py-4 font-medium text-center">Status</th>
                   <th className="px-6 py-4 font-medium text-center">Actions</th>
@@ -493,9 +509,9 @@ export default function ProductsPage() {
                   </tr>
                 ) : (
                   products
-                    .filter(p => {
+                    .filter((p: any) => {
                       if (activeTab === 'All') return true;
-                      const cat = p.category?.toLowerCase() || '';
+                      const cat = (p.categoryName || p.category?.name || '').toLowerCase();
                       if (activeTab === 'Laptop') return cat.includes('laptop') || cat.includes('unit');
                       if (activeTab === 'Aksesoris') return cat.includes('aksesoris') || cat.includes('accessories');
                       if (activeTab === 'Service') return cat.includes('service') || cat.includes('jasa');
@@ -511,7 +527,7 @@ export default function ProductsPage() {
                           className="w-4 h-4 rounded border-gray-600 bg-black/50 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer"
                         />
                       </td>
-                      <td className="px-6 py-4 font-mono text-muted text-xs">{product.id}</td>
+                      <td className="px-6 py-4 font-mono text-muted text-xs">{product.sku || product.id}</td>
                       <td className="px-6 py-4 font-medium text-white">
                         {product.name}
                         <div className="text-xs text-gray-500 font-normal">{product.brand} {product.model}</div>
@@ -519,14 +535,10 @@ export default function ProductsPage() {
                       <td className="px-6 py-4 text-xs text-muted">
                         {[product.processor, product.ram, product.storage].filter(Boolean).join(' • ')}
                       </td>
-                      <td className="px-6 py-4 text-xs">
-                        {product.serialNumber ? (
-                          <span className="px-2 py-1 bg-white/5 border border-glass-border rounded text-muted font-mono">
-                            {product.serialNumber}
-                          </span>
-                        ) : (
-                          <span className="text-gray-600">-</span>
-                        )}
+                      <td className="px-6 py-4 text-center">
+                        <span className="px-3 py-1 bg-blue-500/10 text-blue-400 font-bold rounded-full">
+                          {product.totalStock || 0}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         {product.promoPrice ? (
@@ -545,6 +557,9 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center items-center gap-2">
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedStockProduct(product); setStockModalOpen(true); }} className="p-2 text-green-400 hover:bg-green-400/10 rounded-lg transition-colors" title="View Stock">
+                            <Package className="w-4 h-4" />
+                          </button>
                           <button onClick={(e) => { e.stopPropagation(); handleRowClick(product); }} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="View Details">
                             <Eye className="w-4 h-4" />
                           </button>
@@ -585,6 +600,55 @@ export default function ProductsPage() {
           userRole={userRole}
           onEdit={handleEditClick}
         />
+      )}
+
+      {stockModalOpen && selectedStockProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1C1C1E] border border-white/10 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black/20">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-1">Rincian Stok ({selectedStockProduct.totalStock || 0})</h3>
+                <p className="text-sm text-gray-400 font-mono">{selectedStockProduct.sku} - {selectedStockProduct.name}</p>
+              </div>
+              <button onClick={() => setStockModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-0 overflow-y-auto flex-1">
+              <table className="w-full text-left text-sm text-gray-300">
+                <thead className="bg-white/5 text-xs uppercase text-gray-500 sticky top-0 backdrop-blur-md">
+                  <tr>
+                    <th className="px-6 py-4 font-medium">Serial Number / Barcode</th>
+                    <th className="px-6 py-4 font-medium text-center">Qty</th>
+                    <th className="px-6 py-4 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {selectedStockProduct.items && selectedStockProduct.items.length > 0 ? (
+                    selectedStockProduct.items.map((item: any) => (
+                      <tr key={item.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-3 font-mono text-xs">{item.sn}</td>
+                        <td className="px-6 py-3 text-center font-bold text-blue-400">{item.qty || 1}</td>
+                        <td className="px-6 py-3">
+                          <span className="px-2 py-1 text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 rounded-md uppercase">
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
+                        Belum ada stok fisik yang tercatat.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   );

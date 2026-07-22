@@ -3,6 +3,7 @@ import {
   getStock,
   getStockSummary,
   validateSerialNumber,
+  validateBulkSerialNumber,
   addStock,
   bulkImport,
   batchEdit,
@@ -26,12 +27,14 @@ import {
 } from '../controllers/stock-opname.controller';
 import { authenticateJWT, authorizeRole, requirePermission } from '../middlewares/auth.middleware';
 import { upload } from '../middlewares/upload.middleware';
+import { processInbound } from '../controllers/inbound.controller';
 
 const router = Router();
 
 router.get('/stock', authenticateJWT, getStock);
 router.get('/stock/summary', authenticateJWT, requirePermission('Inventory.View'), getStockSummary);
 router.post('/validate-sn', authenticateJWT, validateSerialNumber);
+router.post('/validate-bulk-sn', authenticateJWT, validateBulkSerialNumber);
 
 // Transfers
 router.get('/transfers', authenticateJWT, requirePermission('Inventory.View'), getTransfers);
@@ -60,5 +63,8 @@ router.post('/stock', authenticateJWT, requirePermission('Inventory.Create'), ad
 router.post('/stock/bulk', authenticateJWT, requirePermission('Inventory.Create'), upload.single('file'), bulkImport);
 router.patch('/stock/batch', authenticateJWT, requirePermission('Inventory.Edit'), batchEdit);
 router.patch('/stock/:id/promo', authenticateJWT, requirePermission('Inventory.Edit'), setPromotion);
+
+// Inbound Batch (Master-Detail Architecture)
+router.post('/inbound', authenticateJWT, requirePermission('Inventory.Create'), processInbound);
 
 export default router;

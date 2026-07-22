@@ -87,28 +87,33 @@ export default function StockTransferPage() {
   };
 
   const handleSearchProduct = async () => {
+    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id);
+    if (!activeBranchId) {
+      toast.error('Pilih Cabang Asal terlebih dahulu');
+      return;
+    }
     if (!searchQuery) {
-      openInventoryModal();
+      toast.error('Masukkan Serial Number (SN) barang');
       return;
     }
     try {
-      const res = await apiClient.get('/inventory/stock', { params: { category: 'all' } });
+      const res = await apiClient.post('/inventory/validate-sn', {
+        serial_number: searchQuery,
+        branch_id: activeBranchId
+      });
       if (res.data.success) {
-        const p = res.data.data.find((x: any) => x.serialNumber === searchQuery || x.id === searchQuery);
-        if (p) {
-          if (selectedItems.find(i => i.id === p.id)) {
-            toast.error('Produk sudah ditambahkan');
-          } else if (p.status !== 'Available') {
-            toast.error('Produk tidak tersedia');
-          } else {
-            setSelectedItems([...selectedItems, p]);
-            setSearchQuery('');
-          }
+        const p = res.data.data;
+        if (selectedItems.find(i => i.sn === p.sn)) {
+          toast.error('Produk sudah ditambahkan');
         } else {
-          toast.error('Produk tidak ditemukan');
+          // Default transfer qty is 1, but we cap it at max available qty
+          setSelectedItems([...selectedItems, { ...p, transferQty: 1, maxQty: p.qty }]);
+          setSearchQuery('');
+          toast.success('Produk ditambahkan');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Produk tidak ditemukan atau tidak tersedia');
       console.error(error);
     }
   };
@@ -138,7 +143,15 @@ export default function StockTransferPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id);
+    if (!activeBranchId) {
+      toast.error('Pilih Cabang Asal terlebih dahulu sebelum upload');
+      e.target.value = '';
+      return;
+    }
+
     try {
+      setLoading(true);
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -146,52 +159,61 @@ export default function StockTransferPage() {
 
       if (jsonData.length === 0) throw new Error('Excel file is empty');
 
-      const identifiers = jsonData.map(row => String(row['ID Produk'] || row['Serial Number'] || row['id'] || row['serialNumber'] || '')).filter(Boolean);
+      const identifiers = jsonData.map(row => String(row['SN'] || row['ID Produk'] || row['Serial Number'] || row['id'] || row['serialNumber'] || '')).filter(Boolean);
 
-      const res = await apiClient.get('/inventory/stock', { params: { category: 'all' } });
+      if (identifiers.length === 0) throw new Error('Tidak ada Serial Number yang ditemukan di file Excel');
+
+      const res = await apiClient.post('/inventory/validate-bulk-sn', { 
+        serial_numbers: identifiers,
+        branch_id: activeBranchId
+      });
+      
       if (res.data.success) {
-        const allStock = res.data.data;
-        const matchedItems = allStock.filter((p: any) => 
-          (identifiers.includes(p.id) || identifiers.includes(p.serialNumber)) && p.status === 'Available'
-        );
-
-        const newItems = matchedItems.filter((m: any) => !selectedItems.find((s: any) => s.id === m.id));
+        const validItems = res.data.data;
+        const newItems = validItems.filter((m: any) => !selectedItems.find((s: any) => s.sn === m.sn));
         
         if (newItems.length > 0) {
-          setSelectedItems([...selectedItems, ...newItems]);
+          const itemsWithTransferQty = newItems.map((p: any) => ({ ...p, transferQty: 1, maxQty: p.qty }));
+          setSelectedItems([...selectedItems, ...itemsWithTransferQty]);
           toast.success(`${newItems.length} produk berhasil ditambahkan dari Excel`);
         } else {
-          toast.error('Tidak ada produk valid/tersedia dari Excel');
+          toast.error('Semua produk dari Excel sudah ada di daftar atau tidak valid');
         }
       }
     } catch (error: any) {
-      toast.error('Gagal membaca file Excel');
+      console.error(error);
+      const errMsg = error.response?.data?.error || error.message || 'Gagal membaca file Excel';
+      toast.error(errMsg);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const handleCreateTransfer = async () => {
+    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id);
+    if (!activeBranchId) {
+      return toast.error('Pilih Cabang Asal terlebih dahulu');
+    }
     if (!selectedBranch || selectedItems.length === 0) {
-      return toast.error('Lengkapi form transfer');
+      return toast.error('Lengkapi form transfer (Cabang Tujuan & Item)');
     }
     
     try {
       setLoading(true);
       const res = await apiClient.post('/inventory/transfers', {
-        fromBranchId: fromBranchId || (user?.branchId || user?.branch_id),
+        fromBranchId: activeBranchId,
         toBranchId: selectedBranch,
-        items: selectedItems.map(i => i.id),
+        items: selectedItems.map(i => ({ sn: i.sn, qty: i.transferQty || 1 })),
         notes
       });
       if (res.data.success) {
-        toast.success(res.data.message);
+        toast.success('Draft Transfer Order berhasil dibuat');
         setSelectedItems([]);
         setNotes('');
         setActiveTab('history');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Gagal membuat transfer');
+      toast.error(error.response?.data?.error || 'Gagal membuat Transfer Order');
     } finally {
       setLoading(false);
     }
@@ -390,11 +412,34 @@ export default function StockTransferPage() {
                     <div key={idx} className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-glass-border">
                       <div>
                         <p className="text-white font-medium">{item.name}</p>
-                        <p className="text-xs text-muted">SN: {item.serialNumber} • ID: {item.id}</p>
+                        <p className="text-xs text-muted">SN: {item.sn} • Tersedia: {item.maxQty}</p>
                       </div>
-                      <button onClick={() => setSelectedItems(selectedItems.filter((_, i) => i !== idx))} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
-                        <X className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        {item.maxQty > 1 ? (
+                          <div className="flex items-center bg-black/40 rounded-lg border border-white/10">
+                            <button 
+                              onClick={() => {
+                                const newItems = [...selectedItems];
+                                newItems[idx].transferQty = Math.max(1, (newItems[idx].transferQty || 1) - 1);
+                                setSelectedItems(newItems);
+                              }}
+                              className="px-2 py-1 text-gray-400 hover:text-white"
+                            >-</button>
+                            <span className="text-sm font-medium w-8 text-center">{item.transferQty || 1}</span>
+                            <button 
+                              onClick={() => {
+                                const newItems = [...selectedItems];
+                                newItems[idx].transferQty = Math.min(item.maxQty, (newItems[idx].transferQty || 1) + 1);
+                                setSelectedItems(newItems);
+                              }}
+                              className="px-2 py-1 text-gray-400 hover:text-white"
+                            >+</button>
+                          </div>
+                        ) : null}
+                        <button onClick={() => setSelectedItems(selectedItems.filter((_, i) => i !== idx))} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -570,14 +615,14 @@ export default function StockTransferPage() {
                     <div className="flex flex-col md:flex-row justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-white font-medium text-lg">{item.product.brand} {item.product.name}</h4>
+                          <h4 className="text-white font-medium text-lg">{item.productItem?.product?.brand} {item.productItem?.product?.name}</h4>
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.accepted ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                             {item.accepted ? 'DITERIMA' : 'DITOLAK'}
                           </span>
                         </div>
                         <div className="text-sm text-gray-400 space-y-1">
-                          <p>SN: <span className="text-gray-200">{item.product.serialNumber || '-'}</span> | ID: <span className="text-gray-200">{item.product.id}</span></p>
-                          <p>Kondisi: <span className="text-gray-200">{item.product.condition || '-'}</span> | Grade: <span className="text-gray-200">{item.product.grade || '-'}</span></p>
+                          <p>SN: <span className="text-gray-200">{item.productItem?.sn || '-'}</span> | Qty: <span className="text-gray-200">{item.qty}</span></p>
+                          <p>ID: <span className="text-gray-200">{item.productItem?.product?.sku || item.productItem?.product?.id}</span></p>
                         </div>
                       </div>
                       

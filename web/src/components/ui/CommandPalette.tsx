@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Package, Users, ShoppingCart, Activity } from 'lucide-react';
+import { Search, X, Package, Users, ShoppingCart, Activity, DollarSign, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 
@@ -34,8 +34,10 @@ export default function CommandPalette() {
   const quickLinks = [
     { name: 'Data Produk', icon: Package, path: '/products' },
     { name: 'Transfer Stok', icon: Activity, path: '/stock-transfer' },
-    { name: 'Point of Sales', icon: ShoppingCart, path: '/pos' },
+    { name: 'Point of Sales', icon: ShoppingCart, path: '/zpos/new-transaction' },
     { name: 'Database Pelanggan', icon: Users, path: '/customers' },
+    { name: 'Keuangan', icon: DollarSign, path: '/finance' },
+    { name: 'Pengaturan', icon: Settings, path: '/settings' },
   ];
 
   const filteredLinks = quickLinks.filter(link => 

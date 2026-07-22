@@ -145,13 +145,20 @@ export const importProducts = async (req: Request, res: Response): Promise<void>
           continue; 
         }
 
+        const targetBranchId = String(row['Cabang ID'] || row['branchId'] || row['Branch ID'] || defaultBranchId || '').trim();
+
         // Validate branch
-        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+        const branch = await prisma.branch.findUnique({ where: { id: targetBranchId } });
         if (!branch) { 
-          errors.push(`Baris ${i + 2}: Cabang ID "${branchId}" tidak ditemukan`); 
+          errors.push(`Baris ${i + 2}: Cabang ID "${targetBranchId}" tidak ditemukan`); 
           skipped++; 
           continue; 
         }
+
+        const sn = row['Serial Number'] || row['serialNumber'] || row['SN'] || null;
+        const categoryStr = row['Kategori'] || row['Category'] || row['category'] || 'Laptop';
+        const isAccessory = ['Aksesoris', 'Sparepart'].includes(categoryStr);
+        const qty = Number(row['Qty'] || row['qty'] || row['Stok'] || 1);
 
         await prisma.product.create({
           data: {
@@ -159,16 +166,25 @@ export const importProducts = async (req: Request, res: Response): Promise<void>
             name,
             brand: row['Brand'] || row['brand'] || null,
             model: row['Model'] || row['model'] || null,
-            category: row['Kategori'] || row['Category'] || row['category'] || 'Laptop',
+            category: categoryStr,
             processor: row['Processor'] || row['processor'] || null,
             ram: row['RAM'] || row['ram'] || null,
             storage: row['Storage'] || row['storage'] || null,
             gpu: row['GPU'] || row['gpu'] || null,
-            serialNumber: row['Serial Number'] || row['serialNumber'] || row['SN'] || null,
+            serialNumber: sn,
             buyPrice,
             sellPrice,
             status: row['Status'] || row['status'] || 'Available',
-            branchId,
+            branchId: targetBranchId,
+            items: {
+              create: {
+                id: `ITEM-${id}-${Date.now().toString().slice(-4)}`,
+                sn: sn || `SN-${id}-${Date.now().toString().slice(-4)}`,
+                status: 'AVAILABLE',
+                branchId: targetBranchId,
+                qty: isAccessory ? Math.max(1, qty) : 1
+              }
+            }
           }
         });
         imported++;

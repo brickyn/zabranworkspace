@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import prisma from '../prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 // Note: Server will crash at startup (index.ts) if JWT_SECRET is missing — no fallback.
@@ -74,5 +75,86 @@ export const requirePermission = (permission: string) => {
     }
     
     next();
+  };
+};
+
+/**
+ * Validasi Real-Time (Stateful Authorization)
+ * 
+ * Middleware ini tidak hanya mengecek isi JWT, tetapi langsung melakukan query ke Database
+ * untuk memastikan hak akses delegasi atau peran utama BENAR-BENAR masih aktif saat ini.
+ * 
+ * PERHATIAN PERFORMA:
+ * Hanya gunakan middleware ini pada endpoint berisiko tinggi (misal: Void Transaksi, Approve PO, Hapus Data).
+ * Untuk endpoint pembacaan ringan (misal: Get List Product), gunakan requirePermission() biasa (Stateless/JWT).
+ */
+export const requireRealtimePermission = (permission: string) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+        return;
+      }
+      
+      // System Admins override
+      if (req.user.role === 'Super Admin' || req.user.role === 'Owner') {
+        next();
+        return;
+      }
+
+      // Query database secara real-time
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: {
+          userRole: {
+            include: {
+              permissions: { include: { permission: true } }
+            }
+          },
+          roleDelegationsTo: {
+            // HANYA ambil delegasi yang masih aktif dan belum kedaluwarsa
+            where: { isActive: true, validUntil: { gte: new Date() } },
+            include: {
+              role: {
+                include: { permissions: { include: { permission: true } } }
+              }
+            }
+          }
+        }
+      });
+
+      if (!user) {
+        res.status(401).json({ success: false, error: 'Unauthorized: User record no longer exists' });
+        return;
+      }
+
+      if (!user.isActive) {
+        res.status(403).json({ success: false, error: 'Forbidden: Your account has been disabled' });
+        return;
+      }
+
+      // Kumpulkan ulang semua permissions real-time
+      const permissionSet = new Set<string>();
+      if (user.userRole) {
+        user.userRole.permissions.forEach(rp => permissionSet.add(rp.permission.action));
+      }
+      user.roleDelegationsTo.forEach(delegation => {
+        delegation.role.permissions.forEach(rp => permissionSet.add(rp.permission.action));
+      });
+
+      // Validasi ketat
+      if (!permissionSet.has(permission)) {
+        res.status(403).json({ 
+          success: false, 
+          error: `Forbidden: Akses ditolak. Hak akses Anda untuk aksi [${permission}] telah dicabut atau masa delegasi telah habis.` 
+        });
+        return;
+      }
+
+      next();
+    } catch (error) {
+      console.error('[Realtime Auth Error]', error);
+      res.status(500).json({ success: false, error: 'Internal Server Error during authorization validation' });
+    }
   };
 };

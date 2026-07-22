@@ -1,10 +1,14 @@
-import express from 'express';
+console.log("STARTING SERVER...");
+console.log("1. Starting imports...");
+import express, { Request, Response, NextFunction } from 'express';
+console.log("2. express imported");
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middlewares/errorHandler';
+console.log("3. Middleware imports done");
 import prisma from './prisma';
 import logger from './utils/logger';
 import authRoutes from './routes/auth.routes';
@@ -12,6 +16,7 @@ import cashManagementRoutes from './routes/cashManagement.routes';
 import productRoutes from './routes/product.routes';
 import inventoryRoutes from './routes/inventory.routes';
 import transactionRoutes from './routes/transaction.routes';
+import sessionRoutes from './routes/session.routes';
 import branchRoutes from './routes/branch.routes';
 import userRoutes from './routes/user.routes';
 import dashboardRoutes from './routes/dashboard.routes';
@@ -42,6 +47,7 @@ import ruleRoutes from './routes/rule.routes';
 import jobRoutes from './routes/job.routes';
 import metadataRoutes from './routes/metadata.routes';
 import posRoutes from './routes/pos.routes';
+import zposRoutes from './routes/zpos.routes';
 import { initWebSocket } from './utils/websocket';
 import { registerWorkflowSubscribers } from './subscribers/WorkflowSubscriber';
 import { JobWorker } from './workers/JobWorker';
@@ -77,7 +83,7 @@ const generalLimiter = rateLimit({
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: ALLOWED_ORIGIN,
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -100,6 +106,7 @@ app.use('/api/v1/auth', loginLimiter, authRoutes); // Stricter limiter on auth
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/transactions', transactionRoutes);
+app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/branches', branchRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
@@ -127,9 +134,10 @@ app.use('/api/v1/workflows', workflowRoutes);
 app.use('/api/v1/rules', ruleRoutes);
 app.use('/api/v1/jobs', jobRoutes);
 app.use('/api/v1/metadata', metadataRoutes);
+app.use('/api/v1/pos', posRoutes);
+app.use('/api/v1/zpos', zposRoutes);
 app.use('/api/v1/kpi', kpiRoutes);
 app.use('/api/v1/scalev', scalevRoutes);
-app.use('/api/v1/pos', posRoutes);
 app.use('/api/v1/data-import', dataImportRoutes);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────

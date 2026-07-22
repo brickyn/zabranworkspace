@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MENU_GROUPS } from '@/components/Layout/DashboardLayout';
-import { LogOut, ArrowRight, Layers, Users, Landmark, FileText, Settings, Briefcase, BookOpen, Package, Wrench, Shield, CreditCard, PieChart } from 'lucide-react';
+import { LogOut, ArrowRight, Layers, Users, Landmark, FileText, Settings, Briefcase, BookOpen, Package, Wrench, Shield, CreditCard, PieChart, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { apiClient } from '@/lib/axios';
@@ -105,9 +105,15 @@ export default function MasterHubPage() {
           color: 'from-blue-500/20 to-purple-500/20', textColor: 'text-blue-600 dark:text-blue-400', borderColor: 'border-blue-500/30', dotColor: 'bg-blue-600',
           statLabel: 'Total Omzet (Bulan Ini)', statValue: metrics ? formatRupiah(metrics.totalOmzet) : '...'
         };
+      case 'Transaksi':
+        return {
+          icon: CreditCard, desc: 'Pusat operasional kasir, riwayat penjualan, dan rekap harian.',
+          color: 'from-fuchsia-500/20 to-purple-500/20', textColor: 'text-fuchsia-600 dark:text-fuchsia-400', borderColor: 'border-fuchsia-500/30', dotColor: 'bg-fuchsia-600',
+          statLabel: 'Shift Terbuka', statValue: metrics && metrics.activeShifts ? metrics.activeShifts : '0'
+        };
       case 'Operasional':
         return {
-          icon: Package, desc: 'Manajemen kasir, produk, inventaris, dan target penjualan.',
+          icon: Package, desc: 'Manajemen master data, inventaris gudang, dan pembelian (PO).',
           color: 'from-emerald-500/20 to-teal-500/20', textColor: 'text-emerald-600 dark:text-emerald-400', borderColor: 'border-emerald-500/30', dotColor: 'bg-emerald-600',
           statLabel: 'Laptop Terjual', statValue: metrics ? `${metrics.laptop.unit} Unit` : '...'
         };
@@ -116,6 +122,12 @@ export default function MasterHubPage() {
           icon: Wrench, desc: 'Pusat layanan pelanggan, reparasi, sewa, dan garansi.',
           color: 'from-orange-500/20 to-amber-500/20', textColor: 'text-orange-600 dark:text-orange-400', borderColor: 'border-orange-500/30', dotColor: 'bg-orange-600',
           statLabel: 'Total Servis', statValue: metrics ? `${metrics.service.unit} Unit` : '...'
+        };
+      case 'KPI & Target':
+        return {
+          icon: Target, desc: 'Pusat target sales dan KPI.',
+          color: 'from-rose-500/20 to-orange-500/20', textColor: 'text-rose-600 dark:text-rose-400', borderColor: 'border-rose-500/30', dotColor: 'bg-rose-600',
+          statLabel: null, statValue: null
         };
       case 'Divisi B2B':
         return {

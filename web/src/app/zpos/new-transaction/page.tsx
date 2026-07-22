@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/Layout/DashboardLayout';
+
 import { Search, ScanBarcode, Trash2, CreditCard, Banknote, Wallet, User, Phone, CheckCircle2, Loader2, ShoppingCart, Tag, Clock, PauseCircle, PlayCircle } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
 import { apiClient } from '@/lib/axios';
@@ -9,8 +9,12 @@ import { toast } from 'react-hot-toast';
 import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import ReceiptPrinter from '@/components/Print/ReceiptPrinter';
+import { useSession } from '@/modules/zpos/components/SessionContext';
+import { Lock } from 'lucide-react';
 
 export default function POSPage() {
+  const { session, isSessionLoading, setShowOpenSession } = useSession();
+  
   const [searchInput, setSearchInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -217,7 +221,11 @@ export default function POSPage() {
 
   const handleAddProduct = (product: any) => {
     // Check if already in cart
-    if (items.find(i => i.id === product.id)) return;
+    const existing = items.find(i => i.id === product.id);
+    if (existing) {
+      updateQuantity(product.id, existing.quantity + 1);
+      return;
+    }
     
     addItem({
       id: product.id,
@@ -297,9 +305,10 @@ export default function POSPage() {
         closingType: closingType || undefined,
         items: items.map(item => ({
           productId: item.id,
+          qty: item.quantity,
           price: item.price,
           discount: item.discount,
-          subtotal: item.price - item.discount
+          subtotal: item.price * item.quantity - item.discount
         }))
       };
 
@@ -398,14 +407,14 @@ export default function POSPage() {
     setSplitPayments([{ method: 'Cash', amount: 0 }, { method: 'Transfer', amount: 0 }]);
   };
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.categoryName || p.category?.name).filter(Boolean)))];
   const filteredProducts = selectedCategory === 'All' 
     ? products 
-    : products.filter(p => p.category === selectedCategory);
+    : products.filter(p => (p.categoryName || p.category?.name) === selectedCategory);
 
   return (
-    <DashboardLayout>
-      <div className="h-full flex flex-col lg:flex-row gap-6">
+    <>
+      <div className="h-full bg-slate-50 flex flex-col lg:flex-row gap-6">
         
         {/* Left Panel: Catalog */}
         <div className="flex-[3] flex flex-col bg-glass-bg border border-glass-border rounded-3xl overflow-hidden backdrop-blur-sm">
@@ -469,14 +478,14 @@ export default function POSPage() {
                   return (
                     <div 
                       key={product.id}
-                      onClick={() => !inCart && handleAddProduct(product)}
+                      onClick={() => handleAddProduct(product)}
                       className={`relative bg-glass-bg/50 border border-glass-border rounded-2xl p-4 transition-all cursor-pointer group ${
-                        inCart ? 'opacity-50 cursor-not-allowed' : 'hover:bg-nav-hover hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10'
+                        inCart ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' : 'hover:bg-nav-hover hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10'
                       }`}
                     >
                       {inCart && (
-                        <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center z-10 backdrop-blur-[2px]">
-                          <CheckCircle2 className="w-8 h-8 text-green-500" />
+                        <div className="absolute top-2 right-12 bg-blue-500 text-white text-[10px] font-bold px-2 py-1 rounded-md z-10">
+                          x{items.find(i => i.id === product.id)?.quantity || 1}
                         </div>
                       )}
                       {product.promoPrice && (
@@ -511,7 +520,26 @@ export default function POSPage() {
         </div>
 
         {/* Right Panel: Cart & Checkout Summary */}
-        <div className="flex-[2] flex flex-col gap-6 overflow-y-auto pb-6 pr-2 custom-scrollbar">
+        <div className="flex-[2] flex flex-col gap-6 overflow-y-auto pb-6 pr-2 custom-scrollbar relative">
+          {/* SESSION LOCK OVERLAY */}
+          {!isSessionLoading && !session && (
+            <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center border border-glass-border">
+              <div className="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+                <Lock className="w-10 h-10 text-indigo-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Kasir Terkunci</h2>
+              <p className="text-slate-300 mb-8 max-w-sm">
+                Anda dapat melihat stok toko, namun harus membuka shift kasir terlebih dahulu untuk melakukan transaksi.
+              </p>
+              <button
+                onClick={() => setShowOpenSession(true)}
+                className="flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]"
+              >
+                <Wallet className="w-5 h-5" />
+                Buka Shift Kasir Sekarang
+              </button>
+            </div>
+          )}
           
           {/* Cart Items List */}
           <div className="flex-1 min-h-[300px] flex flex-col bg-glass-bg border border-glass-border rounded-3xl overflow-hidden backdrop-blur-sm shrink-0">
@@ -547,6 +575,17 @@ export default function POSPage() {
                     <div className="flex justify-between items-end mt-auto gap-2">
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="bg-white/10 hover:bg-white/20 text-white rounded w-6 h-6 flex items-center justify-center transition-colors"
+                          >-</button>
+                          <span className="text-white text-xs w-4 text-center font-mono">{item.quantity}</span>
+                          <button 
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            className="bg-white/10 hover:bg-white/20 text-white rounded w-6 h-6 flex items-center justify-center transition-colors"
+                          >+</button>
+                        </div>
+                        <div className="flex items-center space-x-2">
                           <span className="text-xs text-gray-500 w-8">Harga:</span>
                           <input 
                             type="number"
@@ -566,9 +605,9 @@ export default function POSPage() {
                       </div>
                       <div className="text-right pb-1">
                         {item.discount > 0 && (
-                          <div className="text-gray-500 text-[10px] line-through">{formatRupiah(item.price)}</div>
+                          <div className="text-gray-500 text-[10px] line-through">{formatRupiah(item.price * item.quantity)}</div>
                         )}
-                        <div className="text-blue-400 font-medium text-sm">{formatRupiah(item.price - item.discount)}</div>
+                        <div className="text-blue-400 font-medium text-sm">{formatRupiah(item.price * item.quantity - item.discount)}</div>
                       </div>
                     </div>
                   </div>
@@ -987,7 +1026,6 @@ export default function POSPage() {
           </div>
         </div>
       )}
-
-    </DashboardLayout>
+    </>
   );
 }

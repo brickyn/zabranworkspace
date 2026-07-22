@@ -125,32 +125,62 @@ export const validateSerialNumber = async (req: AuthRequest, res: Response) => {
     if (!serial_number || !targetBranch) {
       return res.status(400).json({ success: false, error: 'serial_number and branch_id are required' });
     }
-    const product = await prisma.product.findFirst({
+    const productItem = await prisma.productItem.findFirst({
       where: { 
         branchId: targetBranch,
-        deletedAt: null,
-        OR: [
-          { id: serial_number },
-          { serialNumber: serial_number }
-        ]
+        status: 'AVAILABLE',
+        sn: serial_number
       },
+      include: { product: true }
     });
-    if (!product) {
-      return res.status(404).json({ success: false, error: 'Produk tidak ditemukan di cabang ini' });
+    if (!productItem) {
+      return res.status(404).json({ success: false, error: 'Produk tidak ditemukan di cabang ini atau tidak tersedia' });
     }
-    if (product.status !== 'Available') {
-      return res.status(400).json({ success: false, error: `Product is currently ${product.status}` });
-    }
-    res.json({
-      success: true,
-      data: {
-        is_valid: true,
-        product: { id: product.id, name: product.name, price: product.sellPrice },
-      },
-    });
+    
+    // Map to old product structure for backward compatibility
+    const mappedProduct = {
+      ...productItem.product,
+      sn: productItem.sn,
+      qty: productItem.qty,
+      productItemId: productItem.id
+    };
+
+    res.json({ success: true, data: mappedProduct });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: 'Failed to validate serial number' });
+  }
+};
+
+export const validateBulkSerialNumber = async (req: AuthRequest, res: Response) => {
+  try {
+    const { serial_numbers, branch_id } = req.body;
+    const targetBranch = branch_id || req.user?.branchId;
+    if (!serial_numbers || !Array.isArray(serial_numbers) || !targetBranch) {
+      return res.status(400).json({ success: false, error: 'serial_numbers array and branch_id are required' });
+    }
+
+    const productItems = await prisma.productItem.findMany({
+      where: { 
+        branchId: targetBranch,
+        status: 'AVAILABLE',
+        sn: { in: serial_numbers }
+      },
+      include: { product: true }
+    });
+    
+    // Map to old product structure for backward compatibility
+    const mappedProducts = productItems.map(item => ({
+      ...item.product,
+      sn: item.sn,
+      qty: item.qty,
+      productItemId: item.id
+    }));
+
+    res.json({ success: true, data: mappedProducts });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: 'Failed to validate bulk serial numbers' });
   }
 };
 
@@ -248,7 +278,7 @@ export const getTransfers = async (req: Request, res: Response) => {
         fromBranch: { select: { name: true } },
         toBranch: { select: { name: true } },
         items: {
-          include: { product: { select: { id: true, name: true, category: true, brand: true, model: true, condition: true, serialNumber: true } } }
+          include: { productItem: { include: { product: true } } }
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -306,16 +336,26 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
     const { items, toBranchId, notes, fromBranchId: reqFromBranchId } = req.body;
     const fromBranchId = reqFromBranchId || req.user?.branchId;
     
+    // items is expected to be an array of { sn: string, qty: number }
     if (!fromBranchId || !toBranchId || !items || !items.length) {
       return res.status(400).json({ success: false, error: 'Invalid data' });
     }
 
-    const products = await prisma.product.findMany({
-      where: { id: { in: items }, branchId: fromBranchId, status: 'Available', deletedAt: null },
+    // Verify all requested ProductItems exist and have enough qty
+    const itemSNs = items.map((i: any) => i.sn);
+    const dbProductItems = await prisma.productItem.findMany({
+      where: { sn: { in: itemSNs }, branchId: fromBranchId, status: 'AVAILABLE' }
     });
 
-    if (products.length !== items.length) {
+    if (dbProductItems.length !== items.length) {
       return res.status(400).json({ success: false, error: 'Beberapa produk tidak ditemukan atau tidak tersedia' });
+    }
+
+    for (const item of items) {
+      const dbItem = dbProductItems.find(p => p.sn === item.sn);
+      if (!dbItem || dbItem.qty < item.qty) {
+        return res.status(400).json({ success: false, error: `Produk dengan SN ${item.sn} tidak tersedia dalam jumlah yang cukup.` });
+      }
     }
 
     // Generate unique Transfer Number
@@ -324,32 +364,67 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
     const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const transferNumber = `TO-${dateStr}-${randomSuffix}`;
 
-    // Create Draft Transfer Order
-    const [transferOrder] = await prisma.$transaction([
-      prisma.transferOrder.create({
+    // Create Draft Transfer Order and split batches if necessary
+    const transferOrder = await prisma.$transaction(async (tx) => {
+      const to = await tx.transferOrder.create({
         data: {
           transferNumber,
           fromBranchId,
           toBranchId,
           status: 'Draft',
           notes,
-          createdBy: req.user?.name,
-          items: {
-            create: products.map(p => ({
-              fromBranchId,
-              toBranchId,
-              productId: p.id,
-              status: 'Pending'
-            }))
+          createdBy: req.user?.name
+        }
+      });
+
+      for (const item of items) {
+        const dbItem = dbProductItems.find(p => p.sn === item.sn)!;
+        
+        let targetProductItemId = dbItem.id;
+        
+        if (dbItem.qty === item.qty) {
+          // Full transfer, just update status
+          await tx.productItem.update({
+            where: { id: dbItem.id },
+            data: { status: 'IN_TRANSIT' }
+          });
+        } else {
+          // Partial transfer, split the batch
+          // Deduct from original
+          await tx.productItem.update({
+            where: { id: dbItem.id },
+            data: { qty: dbItem.qty - item.qty }
+          });
+          
+          // Create new batch for the transfer
+          const newBatch = await tx.productItem.create({
+            data: {
+              sn: `${dbItem.sn}-TRF-${randomSuffix}`,
+              qty: item.qty,
+              status: 'IN_TRANSIT',
+              productId: dbItem.productId,
+              inboundBatchId: dbItem.inboundBatchId,
+              branchId: dbItem.branchId
+            }
+          });
+          targetProductItemId = newBatch.id;
+        }
+
+        // Create StockTransfer line item
+        await tx.stockTransfer.create({
+          data: {
+            transferOrderId: to.id,
+            fromBranchId,
+            toBranchId,
+            productItemId: targetProductItemId,
+            qty: item.qty,
+            status: 'Pending'
           }
-        },
-        include: { items: true }
-      }),
-      prisma.product.updateMany({
-        where: { id: { in: items } },
-        data: { status: 'Reserved' }
-      })
-    ]);
+        });
+      }
+      
+      return to;
+    });
 
     // Audit log
     await prisma.log.create({
@@ -358,7 +433,7 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
         action: 'CREATE_TRANSFER',
         entityType: 'TransferOrder',
         entityId: transferOrder.id,
-        details: `Transfer Order ${transferNumber} dibuat (DRAFT). ${products.length} item untuk dikirim dari ${fromBranchId} ke ${toBranchId}.`,
+        details: `Transfer Order ${transferNumber} dibuat (DRAFT). ${items.length} item untuk dikirim dari ${fromBranchId} ke ${toBranchId}.`,
         ipAddress: req.ip || null
       }
     });
@@ -407,9 +482,9 @@ export const updateTransferStatus = async (req: AuthRequest, res: Response) => {
       
       // If cancelled at any stage before Received, revert stock to Available at fromBranch
       operations.push(
-        prisma.product.updateMany({
-          where: { id: { in: transfer.items.map((i: any) => i.productId) } },
-          data: { status: 'Available' } // Revert to available at source branch
+        prisma.productItem.updateMany({
+          where: { id: { in: transfer.items.map((i: any) => i.productItemId) } },
+          data: { status: 'AVAILABLE' } // Revert to available at source branch
         })
       );
       operations.push(prisma.transferOrder.update({ where: { id }, data: { status, notes: `Cancelled: ${reason}` } }));
@@ -502,7 +577,7 @@ export const bulkReceiveTransfers = async (req: AuthRequest, res: Response) => {
           prisma.stockTransfer.update({ where: { id: lineItem.id }, data: { status: 'Received' } })
         );
         operations.push(
-          prisma.product.update({ where: { id: lineItem.productId }, data: { branchId: transferOrder.toBranchId, status: 'Available' } })
+          prisma.productItem.update({ where: { id: lineItem.productItemId }, data: { branchId: transferOrder.toBranchId, status: 'AVAILABLE' } })
         );
         acceptedCount++;
       } else {
@@ -511,7 +586,7 @@ export const bulkReceiveTransfers = async (req: AuthRequest, res: Response) => {
           prisma.stockTransfer.update({ where: { id: lineItem.id }, data: { status: 'Returned', notes: reqItem.reason || 'Ditolak tanpa alasan' } })
         );
         operations.push(
-          prisma.product.update({ where: { id: lineItem.productId }, data: { branchId: transferOrder.fromBranchId, status: 'Available' } })
+          prisma.productItem.update({ where: { id: lineItem.productItemId }, data: { branchId: transferOrder.fromBranchId, status: 'AVAILABLE' } })
         );
         rejectedCount++;
       }

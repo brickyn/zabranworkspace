@@ -105,28 +105,30 @@ export const createPurchase = async (req: AuthRequest, res: Response): Promise<v
 export const completePurchase = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id);
-    const po: any = await prisma.purchaseOrder.findUnique({
-      where: { id },
+    const userRole = req.user?.role;
+    const userBranchId = req.user?.branchId;
+
+    // 1. Validasi Multi-Tenant / Branch Isolation (Mencegah IDOR)
+    const po = await prisma.purchaseOrder.findFirst({
+      where: {
+        id,
+        // Jika bukan Super Admin, paksa filter berdasarkan branchId user
+        ...(userRole !== 'Super Admin' && { branchId: userBranchId })
+      },
       include: { items: true }
     });
 
     if (!po) {
-      res.status(404).json({ success: false, error: 'PO not found' });
+      res.status(404).json({ success: false, error: 'PO tidak ditemukan atau Anda tidak memiliki akses ke cabang ini' });
       return;
     }
 
-    if (po.status === 'completed') {
-      res.status(400).json({ success: false, error: 'PO is already completed' });
-      return;
-    }
-
-    // Generate products for inventory
+    // Persiapkan data produk yang akan dimasukkan ke inventaris
     const productsToCreate = [];
-    const datePrefix = new Date().toISOString().slice(2,10).replace(/-/g, ''); // YYMMDD
+    const datePrefix = new Date().toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
 
     for (const item of po.items) {
       for (let i = 0; i < item.quantity; i++) {
-        // Generate pseudo-random Serial Number: e.g. PO-260705-ABC
         const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
         productsToCreate.push({
           id: `PO-${datePrefix}-${randomStr}`,
@@ -136,25 +138,42 @@ export const completePurchase = async (req: AuthRequest, res: Response): Promise
           buyPrice: item.buyPrice,
           sellPrice: item.sellPrice,
           status: 'Available',
-          branchId: po.branchId
+          branchId: po.branchId // Aman karena kepemilikan cabang sudah divalidasi
         });
       }
     }
 
-    // Transaction to update PO and insert products
-    await prisma.$transaction([
-      prisma.purchaseOrder.update({
-        where: { id: String(id) },
+    // 2. Optimistic Locking & Atomic Update (Mencegah Race Condition/TOCTOU)
+    await prisma.$transaction(async (tx) => {
+      // Coba perbarui PO HANYA JIKA statusnya saat ini masih 'pending'
+      const updatedPo = await tx.purchaseOrder.updateMany({
+        where: { 
+          id: String(id),
+          status: 'pending' 
+        },
         data: { status: 'completed' }
-      }),
-      prisma.product.createMany({
-        data: productsToCreate
-      })
-    ]);
+      });
+
+      // Jika count === 0, berarti PO sudah tidak 'pending' (mungkin baru saja diselesaikan transaksi lain)
+      if (updatedPo.count === 0) {
+        throw new Error('PO sudah diproses atau dibatalkan oleh transaksi lain.');
+      }
+
+      // Jika update berhasil (count > 0), masukkan produk ke database
+      if (productsToCreate.length > 0) {
+        await tx.product.createMany({
+          data: productsToCreate
+        });
+      }
+    });
 
     res.json({ success: true, message: `PO Completed. ${productsToCreate.length} items added to inventory.` });
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error('[Complete PO Error]', error);
+    if (error.message === 'PO sudah diproses atau dibatalkan oleh transaksi lain.') {
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
     res.status(500).json({ success: false, error: 'Failed to complete PO' });
   }
 };

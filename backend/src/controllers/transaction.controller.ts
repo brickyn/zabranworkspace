@@ -37,7 +37,7 @@ export const getTransactions = async (req: AuthRequest, res: Response) => {
           customer: true,
           cashier: { select: { id: true, name: true } },
           items: {
-            include: { product: true }
+            include: { productItem: { include: { product: true } } }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -63,9 +63,23 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
     const cashierId = req.user?.id;
     const branchId = req.user?.branchId || validatedData.branchId;
 
+    // --- REQUIRE OPEN SESSION ---
+    const openSession = await prisma.registerSession.findFirst({
+      where: { branchId, status: 'OPEN' }
+    });
+
+    if (!openSession) {
+      res.status(400).json({ success: false, error: 'Buka kasir terlebih dahulu sebelum melakukan transaksi.' });
+      return;
+    }
+    // ----------------------------
+
     // --- CONDITIONAL APPROVAL ENGINE (Task 5.2) ---
     const productIds = validatedData.items.map(item => item.productId);
-    const dbProducts = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const dbProductItems = await prisma.productItem.findMany({ 
+      where: { productId: { in: productIds }, status: 'AVAILABLE', branchId: branchId },
+      include: { product: true }
+    });
     
     let requiresApproval = false;
     let overrideReason = '';
@@ -77,7 +91,8 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
 
     if (!requiresApproval) {
       for (const item of validatedData.items) {
-        const dbProduct = dbProducts.find(p => p.id === item.productId);
+        const dbItem = dbProductItems.find(p => p.productId === item.productId);
+        const dbProduct = dbItem?.product;
         if (dbProduct) {
           const discountPercent = (item.discount / dbProduct.sellPrice) * 100;
           if (discountPercent > 20) {
@@ -110,20 +125,33 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
 
     // Execute in a transaction to ensure ACID compliance
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Lock products using optimistic locking to prevent Double Selling
-      const productIds = validatedData.items.map(item => item.productId);
-      
-      const lockedProducts = await tx.product.updateMany({
-        where: { 
-          id: { in: productIds },
-          status: 'Available',
-          branchId: branchId
-        },
-        data: { status: 'Reserved' } // Lock during transaction creation
-      });
+      // 1. Lock and decrement products to prevent Double Selling
+      const selectedProductItemIds = new Map<string, string>(); // to map item.productId to dbItem.id for TransactionItem
 
-      if (lockedProducts.count !== productIds.length) {
-        throw new Error('Beberapa produk tidak tersedia lagi atau sedang dalam proses transaksi lain. Silakan periksa kembali keranjang Anda.');
+      for (const item of validatedData.items) {
+        const productItem = await tx.productItem.findFirst({
+          where: {
+            productId: item.productId,
+            status: 'AVAILABLE',
+            branchId: branchId
+          },
+          orderBy: { createdAt: 'asc' } // FIFO
+        });
+
+        if (!productItem || productItem.qty < item.qty) {
+          throw new Error(`Produk tidak tersedia dalam jumlah yang cukup.`);
+        }
+
+        const newQty = productItem.qty - item.qty;
+        await tx.productItem.update({
+          where: { id: productItem.id },
+          data: {
+            qty: newQty,
+            status: newQty === 0 ? 'SOLD' : 'AVAILABLE'
+          }
+        });
+
+        selectedProductItemIds.set(item.productId, productItem.id);
       }
 
       // 2. Handle Customer (Create if necessary)
@@ -157,6 +185,7 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
         data: {
           id: validatedData.id,
           branchId: branchId,
+          sessionId: openSession.id,
           customerId: finalCustomerId,
           cashierId: cashierId,
           totalAmount: validatedData.total,
@@ -169,30 +198,29 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
           closingType: validatedData.closingType || undefined,
           status: 'completed',
           items: {
-            create: validatedData.items.map(item => ({
-              productId: item.productId,
-              sellingPrice: item.price,
-              discount: item.discount,
-              subtotal: item.subtotal
-            }))
+            create: validatedData.items.map(item => {
+              const productItemId = selectedProductItemIds.get(item.productId);
+              return {
+                productItemId: productItemId!,
+                qty: item.qty,
+                sellingPrice: item.price,
+                discount: item.discount,
+                subtotal: item.subtotal
+              };
+            })
           }
         },
         include: {
           items: {
-            include: { product: true }
+            include: { productItem: { include: { product: true } } }
           },
           customer: true
         }
       });
 
-      // 4. Update Product Status to 'Sold' and Create Warranty if applicable
-      await tx.product.updateMany({
-        where: { id: { in: productIds } },
-        data: { status: 'Sold' }
-      });
-
+      // 4. Create Warranty if applicable
       for (const item of transaction.items) {
-        const product = item.product;
+        const product = item.productItem.product;
         if (product && product.durasiGaransi && product.satuanGaransi) {
           const startDate = new Date();
           let endDate = new Date();
@@ -267,48 +295,81 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
 export const voidTransaction = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id);
+    const { managerPin, reason } = req.body;
     
+    if (!managerPin || !reason) {
+      res.status(400).json({ success: false, error: 'Manager PIN dan Alasan Void wajib diisi.' });
+      return;
+    }
+
     const result = await prisma.$transaction(async (tx) => {
+      // 1. Validasi PIN Manajer
+      const manager = await tx.user.findFirst({
+        where: {
+          authPin: managerPin,
+          isActive: true,
+          OR: [
+            { role: 'Manager' },
+            { role: 'Leader' },
+            { role: 'Super Admin' },
+            { role: 'Owner' }
+          ]
+        }
+      });
+
+      if (!manager) {
+        throw new Error('UNAUTHORIZED_PIN');
+      }
+
+      // 2. Fetch Transaction
       const transaction = await tx.transaction.findUnique({
         where: { id },
         include: { items: true }
       });
 
       if (!transaction) throw new Error('Transaction not found');
-      if (transaction.status === 'voided') throw new Error('Transaction is already voided');
+      if (transaction.status === 'void' || transaction.status === 'voided') {
+        throw new Error('Transaction is already voided');
+      }
 
-      // Update Transaction status
+      // 3. Update Transaction status
       const updatedTx = await tx.transaction.update({
         where: { id },
-        data: { status: 'voided' }
+        data: { 
+          status: 'void',
+          voidedById: manager.id,
+          voidReason: reason,
+          voidedAt: new Date()
+        }
       });
 
-      // Revert Product Status
-      for (const item of transaction.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { status: 'Available' }
+      // 4. Revert Product Status (Kembalikan ke Available)
+      if (transaction.items && transaction.items.length > 0) {
+        const productItemIds = transaction.items.map((item: any) => item.productItemId);
+        await tx.productItem.updateMany({
+          where: { id: { in: productItemIds } },
+          data: { status: 'AVAILABLE' }
         });
       }
 
-      // Log action
+      // 5. Log action
       await tx.log.create({
         data: {
-          userId: req.user?.id || 'system',
+          userId: manager.id,
           action: 'VOID_TRANSACTION',
           entityType: 'Transaction',
           entityId: id,
-          details: `Voided transaction ${id}`,
+          details: `Voided transaction ${id} by ${manager.name}. Reason: ${reason}`,
           ipAddress: req.ip || null
         }
       });
 
-      // Create Notification for Manager & Super Admin
+      // Create Notification for Super Admin
       await tx.notification.create({
         data: {
           type: 'VOID_TRANSACTION',
-          title: 'Transaksi Dibatalkan',
-          message: `Transaksi ${id} telah di-void`,
+          title: 'Transaksi Di-void',
+          message: `Transaksi ${id} dibatalkan oleh ${manager.name}. Alasan: ${reason}`,
           referenceId: id,
           targetRole: 'Management'
         }
@@ -320,6 +381,10 @@ export const voidTransaction = async (req: AuthRequest, res: Response): Promise<
     broadcastMessage('TRANSACTION_VOIDED', { id: result.id, branchId: result.branchId });
     res.json({ success: true, data: result });
   } catch (error: any) {
+    if (error.message === 'UNAUTHORIZED_PIN') {
+      res.status(401).json({ success: false, error: 'PIN salah atau Anda tidak memiliki akses otorisasi.' });
+      return;
+    }
     res.status(400).json({ success: false, error: error.message || 'Failed to void transaction' });
   }
 };
@@ -352,9 +417,9 @@ export const returnTransaction = async (req: AuthRequest, res: Response): Promis
       // Handle stock and warranty
       for (const item of transaction.items) {
         if (returnToStock) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { status: 'QC_Pending' } // Return items go to QC first
+          await tx.productItem.update({
+            where: { id: item.productItemId },
+            data: { status: 'AVAILABLE' }
           });
         }
 

@@ -150,7 +150,7 @@ export default function CashierDashboard() {
           </div>
           <h4 className="font-semibold mb-2 text-center text-gray-900 dark:text-white">Buka Point of Sales</h4>
           <p className="text-sm text-center text-gray-500 dark:text-gray-400 mb-6">Mulai melayani pelanggan dan buat transaksi baru.</p>
-          <a href="/pos" className="w-full text-center px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition font-bold">
+          <a href="/zpos/new-transaction" className="w-full text-center px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition font-bold">
             Buka Kasir POS
           </a>
         </div>

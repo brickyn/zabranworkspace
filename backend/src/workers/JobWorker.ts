@@ -1,7 +1,7 @@
-import { PrismaClient, BackgroundJob } from '@prisma/client';
+import { BackgroundJob } from '@prisma/client';
 import logger from '../utils/logger';
+import prisma from '../prisma';
 
-const prisma = new PrismaClient();
 const WORKER_ID = `worker-${Math.random().toString(36).substring(7)}`;
 
 type JobHandler = (job: BackgroundJob) => Promise<any>;

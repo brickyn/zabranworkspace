@@ -41,7 +41,8 @@ import {
   LayoutGrid,
   Sun,
   Moon,
-  ArrowLeft
+  ArrowLeft,
+  BookOpen
 } from 'lucide-react';
 
 export type MenuItem = {
@@ -65,9 +66,17 @@ export const MENU_GROUPS: MenuGroup[] = [
     ]
   },
   {
+    group: 'Transaksi',
+    items: [
+      { name: 'Kasir (POS)', icon: Receipt, path: '/zpos/new-transaction', roles: ['Super Admin', 'Admin', 'Cashier', 'Leader'] },
+      { name: 'Riwayat Transaksi', icon: FileText, path: '#', roles: ['Super Admin', 'Admin', 'Cashier', 'Leader', 'Manager'] },
+      { name: 'Petty Cash', icon: Wallet, path: '#', roles: ['Super Admin', 'Cashier', 'Leader', 'Manager'] },
+      { name: 'Rekap Shift', icon: Activity, path: '#', roles: ['Super Admin', 'Cashier', 'Leader', 'Manager'] },
+    ]
+  },
+  {
     group: 'Operasional',
     items: [
-      { name: 'Kasir (POS)', icon: Receipt, path: '/pos', roles: ['Super Admin', 'Admin', 'Cashier', 'Leader'] },
       {
         name: 'Produk & Inventaris', icon: Package, roles: ['Super Admin', 'Admin', 'Warehouse', 'Manager', 'Leader', 'Cashier'],
         subItems: [
@@ -78,7 +87,6 @@ export const MENU_GROUPS: MenuGroup[] = [
       },
       { name: 'Pembelian (PO)', icon: ShoppingCart, path: '/pembelian', roles: ['Super Admin', 'Management', 'Manager'] },
       { name: 'Data Penjualan', icon: LineChart, path: '/sales', roles: ['Super Admin', 'Management', 'Leader', 'Manager', 'Finance'] },
-      { name: 'Sales Targets', icon: Target, path: '/sales-targets', roles: ['Super Admin', 'Leader', 'Management', 'Manager'] },
       { name: 'Promo & Kampanye', icon: Tag, path: '/promo', roles: ['Super Admin', 'Management', 'Manager'] },
     ]
   },
@@ -88,6 +96,12 @@ export const MENU_GROUPS: MenuGroup[] = [
       { name: 'Sewa & Rental', icon: Key, path: '/sewa', roles: ['Super Admin', 'Admin', 'Cashier', 'Leader'] },
       { name: 'Servis Center', icon: Wrench, path: '/service-center', roles: ['Super Admin', 'Admin', 'Cashier', 'Leader', 'Teknisi'] },
       { name: 'Garansi', icon: Shield, path: '/warranty', roles: ['Super Admin', 'Admin', 'Cashier', 'Leader'] },
+    ]
+  },
+  {
+    group: 'KPI & Target',
+    items: [
+      { name: 'Sales Targets', icon: Target, path: '/sales-targets', roles: ['Super Admin', 'Leader', 'Management', 'Manager'] },
     ]
   },
   {
@@ -107,7 +121,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     group: 'Divisi BSB',
     items: [
       {
-        name: 'Buku Sekolah Bisnis', icon: FileText, roles: ['Super Admin', 'Management', 'Leader', 'Manager', 'Admin'],
+        name: 'Buku Sekolah Bisnis', icon: BookOpen, roles: ['Super Admin', 'Management', 'Leader', 'Manager', 'Admin'],
         subItems: [
           { name: 'Dashboard BSB', path: '/bsb', roles: ['Super Admin', 'Management', 'Leader', 'Manager', 'Admin'] },
           { name: 'Aktivitas BSB', path: '/bsb/activities', roles: ['Super Admin', 'Management', 'Leader', 'Manager', 'Admin'] },

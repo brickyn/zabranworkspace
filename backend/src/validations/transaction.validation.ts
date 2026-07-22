@@ -12,7 +12,8 @@ export const createTransactionSchema = z.object({
   total: z.number().min(0, 'Total cannot be negative'),
   paymentMethod: z.string().min(1, 'Payment method is required'),
   items: z.array(z.object({
-    productId: z.string().min(1, 'Product ID (SN) is required'),
+    productId: z.string().min(1, 'Product ID is required'),
+    qty: z.number().min(1, 'Qty must be at least 1').default(1),
     price: z.number().min(0, 'Price cannot be negative'),
     discount: z.number().min(0).default(0),
     subtotal: z.number().min(0, 'Subtotal cannot be negative')

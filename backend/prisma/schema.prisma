@@ -38,6 +38,9 @@ model Branch {
   crmMysteryGuests   CRMMysteryGuest[]
   crmCustomerData    CRMCustomerData[]
   EndOfDay           EndOfDay[]
+  registerSessions   RegisterSession[]
+  InboundBatch       InboundBatch[]
+  ProductItem        ProductItem[]
 
   @@map("branches")
 }
@@ -46,6 +49,7 @@ model User {
   id          String  @id // Custom format: numerik seperti "100234"
   email       String  @unique
   password    String
+  authPin     String? // 4-6 digit PIN for managerial authorizations like Void
   name        String
   role        String  @default("User") // Legacy - to be deprecated
   roleId      String?
@@ -63,12 +67,17 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  logs         Log[]
-  transactions Transaction[] @relation("CashierTransactions")
+  logs               Log[]
+  transactions       Transaction[] @relation("CashierTransactions")
+  voidedTransactions Transaction[] @relation("VoidedTransactions")
 
   roleDelegationsFrom RoleDelegation[] @relation("Delegator")
   roleDelegationsTo   RoleDelegation[] @relation("Delegatee")
   EndOfDay            EndOfDay[]
+
+  openedSessions         RegisterSession[] @relation("OpenedSessions")
+  closedSessions         RegisterSession[] @relation("ClosedSessions")
+  inboundBatchesReceived InboundBatch[]    @relation("InboundReceivedBy")
 
   @@index([role])
   @@index([roleId])
@@ -132,28 +141,38 @@ model RoleDelegation {
   @@map("role_delegations")
 }
 
+model Category {
+  id       String    @id @default(uuid())
+  name     String
+  products Product[]
+
+  @@map("categories")
+}
+
 model Product {
-  id            String  @id // Custom format: SUPA-260705-001 (Merepresentasikan unit SN fisik)
-  name          String
-  brand         String?
-  model         String?
-  processor     String?
-  ram           String?
-  storage       String?
-  gpu           String?
-  screenSize    String?
-  condition     String?
-  grade         String?
-  completeness  String?
-  description   String?
-  buyPrice      Float
-  sellPrice     Float
-  promoPrice    Float?
-  status        String  @default("Available") // Available, Reserved, Sold, Return, Service, Damaged, QC_Pending, Return_Supplier
-  rackLocation  String? // Warehouse/Store rack location (e.g. A1-Top)
-  imageUrl      String?
-  category      String?
-  serialNumber  String? // SN as string, optional since accessories might not have one
+  id           String  @id @default(uuid())
+  sku          String  @unique
+  name         String
+  brand        String?
+  model        String?
+  processor    String?
+  ram          String?
+  storage      String?
+  gpu          String?
+  screenSize   String?
+  condition    String?
+  grade        String?
+  completeness String?
+  description  String?
+  buyPrice     Float
+  sellPrice    Float
+  promoPrice   Float?
+  rackLocation String? // Warehouse/Store rack location (e.g. A1-Top)
+  imageUrl     String?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
   minus         String? // Any defect notes
   durasiGaransi Int? // Warranty duration
   satuanGaransi String? // Hari/Minggu/Bulan/Tahun
@@ -165,16 +184,15 @@ model Product {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? // Soft delete — never hard-delete a product that has transaction history
 
-  transactionItems TransactionItem[]
   rentals          Rental[]
-  stockTransfers   StockTransfer[]
   stockOpnameItems StockOpnameItem[]
   promoCampaigns   PromoCampaign[]   @relation("FreeAccessory")
 
+  items ProductItem[]
+
+  // --- STRATEGI INDEXING YANG DIOPTIMALKAN ---
   @@index([branchId])
-  @@index([status])
-  @@index([branchId, status]) // Most common composite query in POS and inventory
-  @@index([category])
+  @@index([categoryId])
   @@index([createdAt])
   @@map("products")
 }
@@ -207,22 +225,29 @@ model Transaction {
   cashier   User?   @relation("CashierTransactions", fields: [cashierId], references: [id])
 
   totalAmount     Float
-  discount        Float     @default(0)
-  status          String    @default("completed") // pending, completed, cancelled, void, returned
-  paymentMethod   String    @default("Cash") // Cash, Transfer, EDC, E-commerce
+  discount        Float   @default(0)
+  status          String  @default("completed") // pending, completed, cancelled, void, returned
+  paymentMethod   String  @default("Cash") // Cash, Transfer, EDC, E-commerce
   splitPayments   Json? // To store multiple payment methods { method, amount }[]
   notes           String? // Keterangan tambahan transaksi
   promoCampaignId String? // ID promo jika menggunakan promo
-  voidReason      String?
-  voidBy          String?
-  returnReason    String?
-  returnedAt      DateTime? // Explicit timestamp for return event
+
+  voidReason String?
+  voidedById String?
+  voidedBy   User?     @relation("VoidedTransactions", fields: [voidedById], references: [id])
+  voidedAt   DateTime?
+
+  returnReason String?
+  returnedAt   DateTime? // Explicit timestamp for return event
 
   leadSource  String? // Instagram, Tiktok, Facebook, Google, Relasi, Cold Market, Hot Market, Ads/Iklan
   closingType String? // Offline, Online
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  sessionId String?
+  session   RegisterSession? @relation(fields: [sessionId], references: [id])
 
   items TransactionItem[]
 
@@ -232,6 +257,7 @@ model Transaction {
   @@index([branchId, status])
   @@index([branchId, createdAt])
   @@index([customerId])
+  @@index([voidedById])
   @@map("transactions")
 }
 
@@ -239,16 +265,19 @@ model TransactionItem {
   id            String      @id @default(uuid())
   transactionId String
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  productId     String
-  product       Product     @relation(fields: [productId], references: [id])
+
+  productItemId String
+  productItem   ProductItem @relation(fields: [productItemId], references: [id])
+
+  qty           Int   @default(1)
   sellingPrice  Float
-  discount      Float       @default(0)
+  discount      Float @default(0)
   subtotal      Float
 
   warranty Warranty?
 
   @@index([transactionId])
-  @@index([productId])
+  @@index([productItemId])
   @@map("transaction_items")
 }
 
@@ -343,6 +372,7 @@ model Log {
 
 model Supplier {
   id        String   @id @default(uuid())
+  code      String   @unique @default(uuid()) // Add default for now to avoid errors on push
   name      String
   contact   String?
   address   String?
@@ -350,6 +380,7 @@ model Supplier {
   updatedAt DateTime @updatedAt
 
   purchaseOrders PurchaseOrder[]
+  inboundBatches InboundBatch[]
 
   @@map("suppliers")
 }
@@ -516,6 +547,8 @@ model TransferOrder {
   notes          String?
   dispatchDate   DateTime?
   createdBy      String?
+  receivedBy     String? // User ID of the Store Receiver
+  receivedAt     DateTime? // Date and time when the transfer was received
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -537,12 +570,18 @@ model StockTransfer {
   fromBranch      Branch         @relation("FromBranch", fields: [fromBranchId], references: [id])
   toBranchId      String
   toBranch        Branch         @relation("ToBranch", fields: [toBranchId], references: [id])
-  productId       String
-  product         Product        @relation(fields: [productId], references: [id])
+  productItemId   String
+  productItem     ProductItem    @relation(fields: [productItemId], references: [id])
+  qty             Int            @default(1)
   status          String         @default("Pending") // Pending | Picked | Shipped | Received | Rejected | Returned | Cancelled
   notes           String? // Rejection reason or shipping notes
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+
+  // ZPOS Store Receiving Discrepancy Tracking
+  receivedStatus   String? @default("Pending") // Pending, Received, Missing, Damaged, WrongSN, WrongItem, PackagingDamaged, Other
+  discrepancyNotes String? // Notes for any discrepancy reported
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([transferOrderId])
   @@index([batchId])
@@ -1073,4 +1112,75 @@ model EndOfDay {
   @@index([branchId, date])
   @@index([cashierId, date])
   @@map("end_of_days")
+}
+
+model RegisterSession {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  openedAt DateTime  @default(now())
+  closedAt DateTime?
+
+  openedById String
+  openedBy   User    @relation("OpenedSessions", fields: [openedById], references: [id])
+  closedById String?
+  closedBy   User?   @relation("ClosedSessions", fields: [closedById], references: [id])
+
+  startingCash   Float
+  actualCash     Float?
+  actualQris     Float?
+  actualTransfer Float?
+
+  status String @default("OPEN") // "OPEN" or "CLOSED"
+
+  transactions Transaction[]
+
+  @@index([branchId])
+  @@index([openedById])
+  @@index([status])
+  @@map("register_sessions")
+}
+
+model InboundBatch {
+  id           String   @id @default(uuid())
+  inboundDate  DateTime
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  receivedById String
+  receivedBy   User     @relation("InboundReceivedBy", fields: [receivedById], references: [id])
+  branchId     String
+  branch       Branch   @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  items ProductItem[]
+
+  @@index([branchId])
+  @@index([supplierId])
+  @@map("inbound_batches")
+}
+
+model ProductItem {
+  id             String       @id @default(uuid())
+  sn             String       @unique
+  qty            Int          @default(1) // 1 for laptops, >1 for accessories with batch SN
+  status         String       @default("AVAILABLE") // AVAILABLE, SOLD, IN_TRANSIT, DAMAGED
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id])
+  inboundBatchId String
+  inboundBatch   InboundBatch @relation(fields: [inboundBatchId], references: [id])
+  branchId       String
+  branch         Branch       @relation(fields: [branchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  transactionItems TransactionItem[]
+  stockTransfers   StockTransfer[]
+
+  @@index([sn])
+  @@index([branchId, status])
+  @@index([productId])
+  @@index([inboundBatchId])
+  @@map("product_items")
 }

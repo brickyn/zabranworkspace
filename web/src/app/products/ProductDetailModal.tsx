@@ -29,8 +29,14 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-glass-bg border border-glass-border rounded-3xl w-full max-w-2xl shadow-2xl my-8">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-glass-bg border border-glass-border rounded-3xl w-full max-w-2xl shadow-2xl my-8 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         <div className="flex items-center justify-between p-6 border-b border-glass-border">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -49,27 +55,38 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
           
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white mb-2">{product.name}</h1>
+              <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                {product.name}
+              </h1>
               <div className="flex items-center gap-3">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(product.status)}`}>
                   {product.status || 'Available'}
                 </span>
-                <span className="text-muted text-sm">{product.category || 'Laptop'}</span>
+                <span className="text-muted text-sm">{product.category?.name || product.categoryName || 'Laptop'}</span>
               </div>
             </div>
             
-            {isAdmin && (
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <button 
+                  onClick={() => {
+                    onClose();
+                    onEdit(product);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit Product
+                </button>
+              )}
               <button 
-                onClick={() => {
-                  onClose();
-                  onEdit(product);
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                onClick={onClose}
+                className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl transition-colors"
+                title="Close Modal"
               >
-                <Edit className="w-4 h-4" />
-                Edit Product
+                <X className="w-5 h-5" />
               </button>
-            )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
@@ -78,7 +95,7 @@ export default function ProductDetailModal({ open, onClose, product, userRole, o
                 <Hash className="w-4 h-4" />
                 ID Produk (Kode-YYMMDD-XXX)
               </div>
-              <div className="text-white font-mono">{product.id}</div>
+              <div className="text-white font-mono">{product.sku || product.id}</div>
             </div>
             
             <div className="bg-glass-bg/50 p-4 rounded-2xl border border-glass-border">

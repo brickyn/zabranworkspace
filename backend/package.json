@@ -36,6 +36,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.15.46",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
