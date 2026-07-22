@@ -185,9 +185,10 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
     const id = req.params.id as string;
     const validatedData = updateProductSchema.parse(req.body);
     
+    const { category, serialNumber, ...restData } = validatedData as any;
     const product = await prisma.product.update({
       where: { id },
-      data: validatedData,
+      data: restData,
     });
     res.json({ success: true, message: 'Product updated', data: product });
   } catch (error) {
@@ -214,7 +215,9 @@ export const deleteProduct = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Check if product has transaction history — prevent orphan data
-    const hasHistory = await prisma.transactionItem.findFirst({ where: { productId: id } });
+    const hasHistory = await prisma.transactionItem.findFirst({ 
+      where: { productItem: { productId: id } } 
+    });
     if (hasHistory) {
       // Soft delete — keep record for audit trail
       await prisma.product.update({ where: { id }, data: { deletedAt: new Date() } });
