@@ -75,9 +75,16 @@ export const requirePermission = (permission: string) => {
     }
     
     const userRole = (req.user.role || '').trim();
+    const lowerRole = userRole.toLowerCase();
 
-    // System Admins override
-    if (userRole.toLowerCase() === 'super admin' || userRole.toLowerCase() === 'owner') {
+    // System Admins & Management override
+    if (lowerRole.includes('super admin') || lowerRole.includes('owner') || lowerRole.includes('management') || lowerRole.includes('admin')) {
+      next();
+      return;
+    }
+
+    // Warehouse & Operational inventory roles override
+    if (permission.startsWith('Inventory.') && (lowerRole.includes('warehouse') || lowerRole.includes('gudang') || lowerRole.includes('leader') || lowerRole.includes('manager') || lowerRole.includes('finance'))) {
       next();
       return;
     }
@@ -85,7 +92,7 @@ export const requirePermission = (permission: string) => {
     const userPerms = req.user.permissions || [];
     let defaultPerms: string[] = [];
     for (const [rKey, pList] of Object.entries(ROLE_DEFAULT_PERMISSIONS)) {
-      if (rKey.toLowerCase() === userRole.toLowerCase() || userRole.toLowerCase().includes(rKey.toLowerCase())) {
+      if (rKey.toLowerCase() === lowerRole || lowerRole.includes(rKey.toLowerCase())) {
         defaultPerms = [...defaultPerms, ...pList];
       }
     }

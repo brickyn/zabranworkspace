@@ -102,18 +102,68 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const validatedData = createProductSchema.parse(req.body);
     
-    // Only Admin or Super Admin can create products (or if you want to allow leaders)
-    // You can enforce this via Role Middleware in routes, but here is an extra check:
     if (req.user && req.user.role === 'Cashier') {
       res.status(403).json({ success: false, error: 'Cashier cannot add master products' });
       return;
     }
 
+    const { category, serialNumber, sku, status, ...restData } = validatedData as any;
+    const skuId = req.body.sku || req.body.id || `PROD-${Date.now()}`;
+
+    // Resolve Category ID from Category Name
+    let categoryId: string | undefined = undefined;
+    if (category) {
+      let catObj = await prisma.category.findFirst({ where: { name: category } });
+      if (!catObj) {
+        catObj = await prisma.category.create({ data: { name: category } });
+      }
+      categoryId = catObj.id;
+    }
+
+    // Create Master Product
     const product = await prisma.product.create({
-      data: validatedData,
+      data: {
+        ...restData,
+        id: skuId,
+        sku: skuId,
+        categoryId: categoryId || undefined,
+      },
     });
-    res.status(201).json({ success: true, message: 'Product created', data: product });
+
+    // Find or Create InboundBatch for physical stock tracking
+    let initSupplier = await prisma.supplier.findFirst({ where: { code: 'INIT' } });
+    if (!initSupplier) {
+      initSupplier = await prisma.supplier.create({
+        data: { code: 'INIT', name: 'Stock Initialization' }
+      });
+    }
+
+    const receivedById = req.user?.id || '200001';
+    const inboundBatch = await prisma.inboundBatch.create({
+      data: {
+        supplierId: initSupplier.id,
+        receivedById: receivedById,
+        branchId: restData.branchId,
+        inboundDate: new Date()
+      }
+    });
+
+    // Create physical ProductItem stock
+    const sn = serialNumber || `${skuId}-SN-${Date.now()}`;
+    await prisma.productItem.create({
+      data: {
+        sn,
+        qty: 1,
+        status: status || 'AVAILABLE',
+        product: { connect: { id: product.id } },
+        branch: { connect: { id: restData.branchId } },
+        inboundBatch: { connect: { id: inboundBatch.id } }
+      }
+    });
+
+    res.status(201).json({ success: true, message: 'Product created successfully', data: product });
   } catch (error) {
+    console.error('Error creating product:', error);
     if (error instanceof z.ZodError) {
       res.status(400).json({ success: false, error: (error as any).errors });
       return;
