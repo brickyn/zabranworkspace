@@ -76,13 +76,13 @@ async function main() {
 
   const gudang = await prisma.user.upsert({
     where: { email: 'warehouse@zabran.com' },
-    update: { branchId: branch1.id, password: passwordHash },
+    update: { branchId: branch1.id, password: passwordHash, role: 'Warehouse' },
     create: {
       id: '200001',
       email: 'warehouse@zabran.com',
       password: passwordHash,
       name: 'Admin Warehouse',
-      role: 'Management',
+      role: 'Warehouse',
       branchId: branch1.id,
     },
   });

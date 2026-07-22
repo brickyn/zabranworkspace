@@ -215,14 +215,22 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     setIsMounted(true);
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const u = JSON.parse(userData);
+      setUser(u);
+      
+      // Warehouse role restricted from main overview / executive dashboard / hub
+      if (u.role === 'Warehouse' && (pathname === '/dashboard' || pathname === '/hub')) {
+        router.push('/products');
+        return;
+      }
+
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 60000);
       return () => clearInterval(interval);
     } else {
       router.push('/login');
     }
-  }, [router]);
+  }, [router, pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');

@@ -23,7 +23,14 @@ export default function MasterHubPage() {
     setIsMounted(true);
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      
+      // Warehouse role is restricted to Inventory Operational module only
+      if (parsedUser.role === 'Warehouse') {
+        router.push('/products');
+        return;
+      }
       
       // Fetch live metrics
       const month = new Date().getMonth() + 1;

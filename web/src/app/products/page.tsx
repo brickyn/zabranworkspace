@@ -68,7 +68,7 @@ export default function ProductsPage() {
     if (user) {
       setUserRole(user.role);
     }
-    if (user && ['Super Admin', 'Finance', 'Management'].includes(user.role)) {
+    if (user && ['Super Admin', 'Finance', 'Management', 'Warehouse', 'Admin', 'Leader'].includes(user.role)) {
       fetchBranches();
     }
   }, []);
@@ -214,7 +214,6 @@ export default function ProductsPage() {
       if (jsonData.length === 0) throw new Error('Excel file is empty');
 
       const warehouse = branches.find((b: any) => b.isWarehouse) || branches.find((b: any) => b.name.toLowerCase().includes('zabran')) || branches[0];
-      // Jika user memilih cabang spesifik di dropdown, gunakan cabang tersebut. Jika 'all', paksa masuk ke Gudang Pusat
       const defaultBranchId = (selectedBranch && selectedBranch !== 'all') ? selectedBranch : (warehouse ? warehouse.id : '');
 
       const formattedProducts = jsonData.map((row) => ({
@@ -231,7 +230,7 @@ export default function ProductsPage() {
         retailPrice: Number(row['RETAIL_PRICE'] || row['retailPrice'] || row['Sell Price'] || 0),
         serialNumber: row['SERIAL_NUMBER'] || row['serialNumber'] || row['Serial Number'] || undefined,
         qty: Number(row['QTY'] || row['qty'] || 1),
-        branchId: defaultBranchId, // Selalu masuk ke gudang pusat terlebih dahulu sesuai workflow
+        branchId: defaultBranchId,
       }));
 
       const res = await apiClient.post('/products/bulk', { products: formattedProducts });
@@ -293,11 +292,37 @@ export default function ProductsPage() {
     <DashboardLayout>
       <div className="h-full flex flex-col gap-6">
         
+        {/* Dedicated Inventory Overview Banner for Operational / Warehouse */}
+        <div className="bg-gradient-to-r from-emerald-950/40 via-teal-900/30 to-blue-950/40 p-6 rounded-3xl border border-emerald-500/20 backdrop-blur-md shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
+              <Package className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-extrabold text-white">Overview Operasional Inventaris</h1>
+                {userRole === 'Warehouse' && (
+                  <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-semibold">
+                    Divisi Warehouse
+                  </span>
+                )}
+              </div>
+              <p className="text-muted text-sm mt-0.5">Pusat kontrol katalog produk, manajemen stok barang, dan transfer inventaris antar cabang.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 bg-glass-bg/60 rounded-xl border border-glass-border text-right">
+              <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Total Item Produk</p>
+              <p className="text-lg font-bold text-emerald-400">{products.length} Katalog</p>
+            </div>
+          </div>
+        </div>
+
         {/* Header Actions */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-glass-bg p-6 rounded-3xl border border-glass-border backdrop-blur-sm">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Master Inventory</h1>
-            <p className="text-muted text-sm">Manage your product catalog, stock, and pricing.</p>
+            <h2 className="text-lg font-bold text-white mb-0.5">Katalog & Stok Produk</h2>
+            <p className="text-muted text-xs">Kelola ketersediaan stok, harga jual, serta penambahan unit baru.</p>
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
@@ -308,7 +333,7 @@ export default function ProductsPage() {
               </div>
               <input
                 type="text"
-                placeholder="Search by ID Produk, Name, or Brand..."
+                placeholder="Cari SKU, Nama, atau Brand..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-glass-bg/80 border border-glass-border rounded-xl text-foreground placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
@@ -316,7 +341,7 @@ export default function ProductsPage() {
             </div>
 
             {/* Branch Filter */}
-            {['Super Admin', 'Finance', 'Management'].includes(userRole) && (
+            {['Super Admin', 'Finance', 'Management', 'Warehouse', 'Admin', 'Leader'].includes(userRole) && (
               <select
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
@@ -329,8 +354,8 @@ export default function ProductsPage() {
               </select>
             )}
             
-            {/* Actions for Admin */}
-            {['Super Admin', 'Management', 'Finance'].includes(userRole) && (
+            {/* Actions for Admin & Warehouse */}
+            {['Super Admin', 'Management', 'Finance', 'Warehouse', 'Admin'].includes(userRole) && (
               <div className="flex gap-2">
                 <button onClick={handleDownloadTemplate} className="px-4 py-2.5 bg-blue-900/40 hover:bg-blue-900/60 text-blue-400 border border-blue-500/30 rounded-xl text-sm font-medium transition-colors flex items-center gap-2">
                   <Download className="w-4 h-4" />

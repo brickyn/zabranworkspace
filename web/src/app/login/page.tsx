@@ -41,6 +41,8 @@ export default function LoginPage() {
           router.push('/zpos/new-transaction');
         } else if (user.role === 'Leader') {
           router.push('/zpos/dashboard');
+        } else if (user.role === 'Warehouse') {
+          router.push('/products');
         } else {
           // Master Hub redirect for ERP roles
           router.push('/hub');
