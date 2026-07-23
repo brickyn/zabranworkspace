@@ -49,11 +49,24 @@ export default function StockTransferPage() {
   const suratJalanRef = useRef<HTMLDivElement>(null);
   const [printData, setPrintData] = useState<any>(null);
   const [isPrintLoading, setIsPrintLoading] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   const handlePrintSuratJalan = useReactToPrint({
     contentRef: suratJalanRef,
     documentTitle: `SuratJalan_${printData?.batchId || 'ZIS'}`,
   });
+
+  const handleTriggerPrint = () => {
+    try {
+      if (handlePrintSuratJalan) {
+        handlePrintSuratJalan();
+      } else {
+        window.print();
+      }
+    } catch (e) {
+      window.print();
+    }
+  };
 
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem('user') || '{}');
@@ -297,9 +310,7 @@ export default function StockTransferPage() {
           items: transfers,
           notes: transferOrder?.notes,
         });
-        setTimeout(() => {
-          handlePrintSuratJalan();
-        }, 300);
+        setIsPrintModalOpen(true);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Gagal memuat data Surat Jalan');
@@ -323,64 +334,64 @@ export default function StockTransferPage() {
 
     if (to.status === 'Draft' && isWarehouseOrAdmin) {
       btns.push(
-        <button key="approve" onClick={() => handleUpdateStatus(to.id, 'Approved')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <CheckCircle className="w-3.5 h-3.5" /> Approve / Proses
+        <button key="approve" onClick={() => handleUpdateStatus(to.id, 'Approved')} className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <CheckCircle className="w-4 h-4" /> Approve / Proses
         </button>
       );
     }
     if (to.status === 'Approved' && isWarehouseOrAdmin) {
       btns.push(
-        <button key="pick" onClick={() => handleUpdateStatus(to.id, 'Ready to Pick')} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <Package className="w-3.5 h-3.5" /> Siapkan Pick
+        <button key="pick" onClick={() => handleUpdateStatus(to.id, 'Ready to Pick')} className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <Package className="w-4 h-4" /> Siapkan Pick
         </button>
       );
     }
     if (to.status === 'Ready to Pick' && isWarehouseOrAdmin) {
       btns.push(
-        <button key="picking" onClick={() => handleUpdateStatus(to.id, 'Picking')} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <Play className="w-3.5 h-3.5" /> Mulai Picking
+        <button key="picking" onClick={() => handleUpdateStatus(to.id, 'Picking')} className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <Play className="w-4 h-4" /> Mulai Picking
         </button>
       );
     }
     if (to.status === 'Picking' && isWarehouseOrAdmin) {
       btns.push(
-        <button key="ready" onClick={() => handleUpdateStatus(to.id, 'Ready to Ship')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <PackageCheck className="w-3.5 h-3.5" /> Siap Kirim
+        <button key="ready" onClick={() => handleUpdateStatus(to.id, 'Ready to Ship')} className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <PackageCheck className="w-4 h-4" /> Siap Kirim
         </button>
       );
     }
     if (to.status === 'Ready to Ship' && isWarehouseOrAdmin) {
       btns.push(
-        <button key="dispatch" onClick={() => handleUpdateStatus(to.id, 'Dispatched')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <Truck className="w-3.5 h-3.5" /> Kirim Barang (Dispatch)
+        <button key="dispatch" onClick={() => handleUpdateStatus(to.id, 'Dispatched')} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <Truck className="w-4 h-4" /> Kirim Barang (Dispatch)
         </button>
       );
     }
     if (to.status === 'Dispatched' && isWarehouseOrAdmin) {
       btns.push(
-        <button key="intransit" onClick={() => handleUpdateStatus(to.id, 'In Transit')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <ArrowRight className="w-3.5 h-3.5" /> Set In Transit
+        <button key="intransit" onClick={() => handleUpdateStatus(to.id, 'In Transit')} className="px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <ArrowRight className="w-4 h-4" /> Set In Transit
         </button>
       );
     }
     if (['In Transit', 'Dispatched'].includes(to.status) && (isDest || isWarehouseOrAdmin)) {
       btns.push(
-        <button key="receive" onClick={() => openBulkModal(to)} className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <CheckCircle2 className="w-3.5 h-3.5" /> Terima Barang
+        <button key="receive" onClick={() => openBulkModal(to)} className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <CheckCircle2 className="w-4 h-4" /> Terima Barang
         </button>
       );
     }
     if (['Partially Received', 'Received'].includes(to.status) && isWarehouseOrAdmin) {
       btns.push(
-        <button key="complete" onClick={() => handleUpdateStatus(to.id, 'Completed')} className="px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
-          <CheckCircle className="w-3.5 h-3.5" /> Selesaikan
+        <button key="complete" onClick={() => handleUpdateStatus(to.id, 'Completed')} className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <CheckCircle className="w-4 h-4" /> Selesaikan
         </button>
       );
     }
     if (!['Completed', 'Received', 'Partially Received', 'Cancelled'].includes(to.status) && isWarehouseOrAdmin) {
       btns.push(
-        <button key="cancel" onClick={() => handleCancelTransfer(to.id)} className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
-          <Ban className="w-3.5 h-3.5" /> Cancel
+        <button key="cancel" onClick={() => handleCancelTransfer(to.id)} className="px-3.5 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <Ban className="w-4 h-4" /> Cancel
         </button>
       );
     }
@@ -574,23 +585,24 @@ export default function StockTransferPage() {
                       <span>{to.items.length} Item</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2.5 flex-wrap">
                     {renderActionButtons(to)}
                     <button 
                       onClick={() => setExpandedTOId(expandedTOId === to.id ? null : to.id)}
-                      className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                      className="px-3.5 py-2 bg-blue-600/10 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      <Eye className="w-3.5 h-3.5" />
-                      {expandedTOId === to.id ? 'Sembunyikan Detail' : 'Detail Item'}
-                      {expandedTOId === to.id ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+                      <Eye className="w-4 h-4" />
+                      {expandedTOId === to.id ? 'Sembunyikan' : 'Detail Item'}
+                      {expandedTOId === to.id ? <ChevronUp className="w-3.5 h-3.5 ml-0.5" /> : <ChevronDown className="w-3.5 h-3.5 ml-0.5" />}
                     </button>
                     {to.status !== 'Cancelled' && (
                       <button 
                         onClick={() => handleCetakSuratJalan(to.id)}
                         disabled={isPrintLoading}
-                        className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        className="px-3.5 py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 disabled:opacity-50 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
                       >
-                        <Printer className="w-3.5 h-3.5" /> Cetak DO
+                        {isPrintLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                        Cetak Surat Jalan
                       </button>
                     )}
                   </div>
@@ -849,7 +861,50 @@ export default function StockTransferPage() {
         </div>
       )}
 
-      <div className="hidden">
+      {/* Surat Jalan Preview & Print Modal */}
+      {isPrintModalOpen && printData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+          <div className="bg-gray-900 border border-glass-border text-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden relative my-auto">
+            {/* Modal Header */}
+            <div className="p-4 bg-gray-900 border-b border-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-md">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white">Pratinjau Surat Jalan ({printData.batchId})</h3>
+                  <p className="text-xs text-gray-400">Silakan periksa detail dokumen Surat Jalan sebelum dicetak.</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleTriggerPrint}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Printer className="w-4 h-4" /> Cetak Surat Jalan Sekarang
+                </button>
+                <button 
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Printable View */}
+            <div className="p-6 bg-gray-950 overflow-y-auto max-h-[75vh] flex justify-center border-t border-gray-800">
+              <div className="shadow-2xl rounded-lg overflow-hidden">
+                <DeliveryOrderPrinter ref={suratJalanRef} {...printData} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Offscreen printable target container for react-to-print */}
+      <div className="absolute top-0 left-0 -z-50 opacity-0 pointer-events-none">
         <div ref={suratJalanRef}>
           {printData && <DeliveryOrderPrinter {...printData} />}
         </div>
