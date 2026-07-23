@@ -71,13 +71,13 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
     setError(null);
 
     try {
-      const generatedId = formData.sku || formData.id || `PROD-${Date.now()}`;
+      const targetSku = formData.sku || formData.id || `PROD-${Date.now()}`;
       const payload = { 
         ...formData, 
-        id: generatedId,
+        id: product ? product.id : targetSku,
+        sku: targetSku,
         branchId: formData.branchId || 'branch-001'
       };
-      delete payload.sku;
 
       if (product) {
         await apiClient.put(`/products/${product.id}`, payload);
@@ -137,7 +137,7 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm text-muted ml-1">ID Produk (SKU) *</label>
-                  <input required name={product ? 'id' : 'sku'} value={product ? formData.id : formData.sku || ''} onChange={handleChange} disabled={!!product} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all disabled:opacity-50" />
+                  <input required name="sku" value={formData.sku || formData.id || ''} onChange={handleChange} disabled={!!product} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all disabled:opacity-50" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm text-muted ml-1">Brand</label>

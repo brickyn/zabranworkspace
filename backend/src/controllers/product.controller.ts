@@ -185,10 +185,14 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
     const id = req.params.id as string;
     const validatedData = updateProductSchema.parse(req.body);
     
-    const { category, serialNumber, ...restData } = validatedData as any;
+    const { category, serialNumber, sku, ...restData } = validatedData as any;
+    const updateSku = req.body.sku || sku;
     const product = await prisma.product.update({
       where: { id },
-      data: restData,
+      data: {
+        ...restData,
+        ...(updateSku ? { sku: updateSku } : {})
+      },
     });
     res.json({ success: true, message: 'Product updated', data: product });
   } catch (error) {

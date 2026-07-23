@@ -194,7 +194,7 @@ export default function StockTransferPage() {
   };
 
   const handleCreateTransfer = async () => {
-    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id);
+    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id) || 'branch-001';
     if (!activeBranchId) {
       return toast.error('Pilih Cabang Asal terlebih dahulu');
     }
@@ -207,16 +207,22 @@ export default function StockTransferPage() {
       const res = await apiClient.post('/inventory/transfers', {
         fromBranchId: activeBranchId,
         toBranchId: selectedBranch,
-        items: selectedItems.map(i => ({ sn: i.sn, qty: i.transferQty || 1 })),
+        items: selectedItems.map(i => ({ 
+          sn: i.sn || i.sku || i.id, 
+          productItemId: i.productItemId || i.id, 
+          qty: i.transferQty || i.qty || 1 
+        })),
         notes
       });
       if (res.data.success) {
-        toast.success('Draft Transfer Order berhasil dibuat');
+        toast.success(res.data.message || 'Draft Transfer Order berhasil dibuat');
         setSelectedItems([]);
         setNotes('');
         setActiveTab('history');
+        fetchTransfers();
       }
     } catch (error: any) {
+      console.error('handleCreateTransfer error:', error);
       toast.error(error.response?.data?.error || 'Gagal membuat Transfer Order');
     } finally {
       setLoading(false);

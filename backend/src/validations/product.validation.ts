@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const createProductSchema = z.object({
   id: z.string().min(1, 'Product ID is required'),
+  sku: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   brand: z.string().optional(),
   model: z.string().optional(),
