@@ -57,6 +57,8 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
       } catch (e) {
         return date;
       }
+    };
+
     const getFormattedSuratJalanNo = (rawId: string, dateVal: string, fromName?: string, toName?: string) => {
       if (rawId && rawId.includes('/')) return rawId;
       
