@@ -50,7 +50,13 @@ export const getStock = async (req: Request, res: Response) => {
     if (targetBranch && targetBranch !== 'all') whereClause.branchId = targetBranch;
     if (product_id) whereClause.productId = product_id as string;
     if (category && category !== 'all') {
-      whereClause.product = { ...whereClause.product, category: category as string };
+      whereClause.product = {
+        ...whereClause.product,
+        OR: [
+          { categoryId: category as string },
+          { category: { name: { contains: category as string, mode: 'insensitive' } } }
+        ]
+      };
     }
     
     const productItems = await prisma.productItem.findMany({
