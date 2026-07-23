@@ -65,7 +65,15 @@ export default function StockTransferPage() {
     try {
       const res = await apiClient.get('/branches');
       if (res.data.success) {
-        setBranches(res.data.data);
+        const bList = res.data.data;
+        setBranches(bList);
+        const warehouse = bList.find((b: any) => b.isWarehouse) || 
+                          bList.find((b: any) => b.name.toLowerCase().includes('gudang') || b.name.toLowerCase().includes('warehouse')) || 
+                          bList.find((b: any) => b.id === 'branch-001') || 
+                          bList[0];
+        if (warehouse && !fromBranchId) {
+          setFromBranchId(warehouse.id);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -87,13 +95,9 @@ export default function StockTransferPage() {
   };
 
   const handleSearchProduct = async () => {
-    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id);
-    if (!activeBranchId) {
-      toast.error('Pilih Cabang Asal terlebih dahulu');
-      return;
-    }
+    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id) || 'branch-001';
     if (!searchQuery) {
-      toast.error('Masukkan Serial Number (SN) barang');
+      toast.error('Masukkan Serial Number (SN) atau Kode Barang/SKU');
       return;
     }
     try {
@@ -103,13 +107,12 @@ export default function StockTransferPage() {
       });
       if (res.data.success) {
         const p = res.data.data;
-        if (selectedItems.find(i => i.sn === p.sn)) {
-          toast.error('Produk sudah ditambahkan');
+        if (selectedItems.find(i => i.sn === p.sn || i.id === p.id)) {
+          toast.error('Produk sudah ditambahkan ke daftar transfer');
         } else {
-          // Default transfer qty is 1, but we cap it at max available qty
           setSelectedItems([...selectedItems, { ...p, transferQty: 1, maxQty: p.qty }]);
           setSearchQuery('');
-          toast.success('Produk ditambahkan');
+          toast.success('Produk berhasil ditambahkan');
         }
       }
     } catch (error: any) {
@@ -120,10 +123,11 @@ export default function StockTransferPage() {
 
   const openInventoryModal = async () => {
     setIsInventoryModalOpen(true);
+    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id) || 'branch-001';
     try {
-      const res = await apiClient.get('/inventory/stock', { params: { category: 'all', branch_id: fromBranchId || (user?.branchId || user?.branch_id) } });
+      const res = await apiClient.get('/inventory/stock', { params: { category: 'all', branch_id: activeBranchId } });
       if (res.data.success) {
-        setAvailableInventory(res.data.data.filter((p: any) => p.status === 'Available'));
+        setAvailableInventory(res.data.data);
       }
     } catch (error) {
       console.error(error);
@@ -131,10 +135,10 @@ export default function StockTransferPage() {
   };
 
   const handleAddFromInventory = (product: any) => {
-    if (selectedItems.find(i => i.id === product.id)) {
+    if (selectedItems.find(i => i.sn === product.sn || i.id === product.id)) {
       toast.error('Produk sudah ditambahkan');
     } else {
-      setSelectedItems([...selectedItems, product]);
+      setSelectedItems([...selectedItems, { ...product, transferQty: 1, maxQty: product.qty || 1 }]);
       toast.success('Ditambahkan ke daftar');
     }
   };
@@ -143,12 +147,7 @@ export default function StockTransferPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id);
-    if (!activeBranchId) {
-      toast.error('Pilih Cabang Asal terlebih dahulu sebelum upload');
-      e.target.value = '';
-      return;
-    }
+    const activeBranchId = fromBranchId || (user?.branchId || user?.branch_id) || 'branch-001';
 
     try {
       setLoading(true);
@@ -157,11 +156,16 @@ export default function StockTransferPage() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-      if (jsonData.length === 0) throw new Error('Excel file is empty');
+      if (jsonData.length === 0) throw new Error('File Excel kosong');
 
-      const identifiers = jsonData.map(row => String(row['SN'] || row['ID Produk'] || row['Serial Number'] || row['id'] || row['serialNumber'] || '')).filter(Boolean);
+      const identifiers = jsonData.map(row => String(
+        row['SERIAL_NUMBER'] || row['Serial_Number'] || row['Serial Number'] || row['serialNumber'] ||
+        row['SN'] || row['sn'] || 
+        row['SKU'] || row['sku'] || 
+        row['ID Produk'] || row['Kode Barang'] || row['Kode'] || row['ID'] || row['id'] || ''
+      ).trim()).filter(Boolean);
 
-      if (identifiers.length === 0) throw new Error('Tidak ada Serial Number yang ditemukan di file Excel');
+      if (identifiers.length === 0) throw new Error('Tidak ada Serial Number (SN) atau SKU yang ditemukan di file Excel');
 
       const res = await apiClient.post('/inventory/validate-bulk-sn', { 
         serial_numbers: identifiers,
@@ -170,14 +174,14 @@ export default function StockTransferPage() {
       
       if (res.data.success) {
         const validItems = res.data.data;
-        const newItems = validItems.filter((m: any) => !selectedItems.find((s: any) => s.sn === m.sn));
+        const newItems = validItems.filter((m: any) => !selectedItems.find((s: any) => s.sn === m.sn || s.id === m.id));
         
         if (newItems.length > 0) {
-          const itemsWithTransferQty = newItems.map((p: any) => ({ ...p, transferQty: 1, maxQty: p.qty }));
+          const itemsWithTransferQty = newItems.map((p: any) => ({ ...p, transferQty: 1, maxQty: p.qty || 1 }));
           setSelectedItems([...selectedItems, ...itemsWithTransferQty]);
           toast.success(`${newItems.length} produk berhasil ditambahkan dari Excel`);
         } else {
-          toast.error('Semua produk dari Excel sudah ada di daftar atau tidak valid');
+          toast.error('Semua produk dari Excel sudah ada di daftar atau tidak tersedia di cabang ini');
         }
       }
     } catch (error: any) {

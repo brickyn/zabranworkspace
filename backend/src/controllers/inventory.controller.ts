@@ -40,22 +40,41 @@ function parseExcel(buffer: Buffer) {
 
 export const getStock = async (req: Request, res: Response) => {
   try {
-    const { product_id, branch_id, category, status } = req.query;
-    const whereClause: any = { deletedAt: null };
-    if (product_id) whereClause.id = product_id as string;
-    if (branch_id) whereClause.branchId = branch_id as string;
-    whereClause.status = status ? (status as string) : 'Available';
-    if (category && category !== 'all') whereClause.category = category as string;
+    const { product_id, branch_id, category } = req.query;
+    const targetBranch = (branch_id as string) || (req as any).user?.branchId || 'branch-001';
+
+    const whereClause: any = { 
+      status: { in: ['AVAILABLE', 'Available'] },
+      product: { deletedAt: null }
+    };
+    if (targetBranch && targetBranch !== 'all') whereClause.branchId = targetBranch;
+    if (product_id) whereClause.productId = product_id as string;
+    if (category && category !== 'all') {
+      whereClause.product = { ...whereClause.product, category: category as string };
+    }
     
-    const products = await prisma.product.findMany({
+    const productItems = await prisma.productItem.findMany({
       where: whereClause,
-      include: { branch: true },
+      include: { product: { include: { branch: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    res.json({ success: true, data: products });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: 'Failed to fetch inventory stock' });
+
+    // Map to unified product structure for frontend consumption
+    const mappedProducts = productItems.map(item => ({
+      ...item.product,
+      id: item.product.id,
+      productItemId: item.id,
+      sn: item.sn,
+      qty: item.qty,
+      status: 'Available',
+      branchId: item.branchId,
+      branch: item.product.branch
+    }));
+
+    res.json({ success: true, data: mappedProducts });
+  } catch (error: any) {
+    console.error('getStock error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch inventory stock: ' + (error.message || error) });
   }
 };
 
@@ -98,7 +117,6 @@ export const getStockSummary = async (req: AuthRequest, res: Response) => {
     });
 
     // Enforce formula: Available = Warehouse Stock - Reserved Stock - In Transit
-    // Our status-based approach already isolates 'Available', but we'll return the breakdown.
     res.json({
       success: true,
       data: {
@@ -122,16 +140,23 @@ export const validateSerialNumber = async (req: AuthRequest, res: Response) => {
     if (!serial_number || !targetBranch) {
       return res.status(400).json({ success: false, error: 'serial_number and branch_id are required' });
     }
+    const cleanSN = String(serial_number).trim();
+
     const productItem = await prisma.productItem.findFirst({
       where: { 
         branchId: targetBranch,
-        status: 'AVAILABLE',
-        sn: serial_number
+        status: { in: ['AVAILABLE', 'Available'] },
+        OR: [
+          { sn: { equals: cleanSN, mode: 'insensitive' } },
+          { product: { sku: { equals: cleanSN, mode: 'insensitive' } } },
+          { productId: cleanSN }
+        ]
       },
       include: { product: true }
     });
+
     if (!productItem) {
-      return res.status(404).json({ success: false, error: 'Produk tidak ditemukan di cabang ini atau tidak tersedia' });
+      return res.status(404).json({ success: false, error: `Produk dengan SN/Kode '${cleanSN}' tidak ditemukan di cabang ini atau tidak tersedia` });
     }
     
     // Map to old product structure for backward compatibility
@@ -144,7 +169,7 @@ export const validateSerialNumber = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: mappedProduct });
   } catch (error) {
-    console.error(error);
+    console.error('validateSerialNumber error:', error);
     res.status(500).json({ success: false, error: 'Failed to validate serial number' });
   }
 };
@@ -157,11 +182,17 @@ export const validateBulkSerialNumber = async (req: AuthRequest, res: Response) 
       return res.status(400).json({ success: false, error: 'serial_numbers array and branch_id are required' });
     }
 
+    const cleanIdentifiers = serial_numbers.map(s => String(s).trim()).filter(Boolean);
+
     const productItems = await prisma.productItem.findMany({
       where: { 
         branchId: targetBranch,
-        status: 'AVAILABLE',
-        sn: { in: serial_numbers }
+        status: { in: ['AVAILABLE', 'Available'] },
+        OR: [
+          { sn: { in: cleanIdentifiers, mode: 'insensitive' } },
+          { product: { sku: { in: cleanIdentifiers, mode: 'insensitive' } } },
+          { productId: { in: cleanIdentifiers } }
+        ]
       },
       include: { product: true }
     });
@@ -176,7 +207,7 @@ export const validateBulkSerialNumber = async (req: AuthRequest, res: Response) 
 
     res.json({ success: true, data: mappedProducts });
   } catch (error) {
-    console.error(error);
+    console.error('validateBulkSerialNumber error:', error);
     res.status(500).json({ success: false, error: 'Failed to validate bulk serial numbers' });
   }
 };
@@ -334,26 +365,26 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
     const { items, toBranchId, notes, fromBranchId: reqFromBranchId } = req.body;
     const fromBranchId = reqFromBranchId || req.user?.branchId;
     
-    // items is expected to be an array of { sn: string, qty: number }
     if (!fromBranchId || !toBranchId || !items || !items.length) {
-      return res.status(400).json({ success: false, error: 'Invalid data' });
+      return res.status(400).json({ success: false, error: 'Cabang asal, cabang tujuan, dan daftar item wajib diisi' });
     }
 
-    // Verify all requested ProductItems exist and have enough qty
-    const itemSNs = items.map((i: any) => i.sn);
+    const cleanInputSNs = items.map((i: any) => String(i.sn || i.productItemId || i.id || '').trim()).filter(Boolean);
     const dbProductItems = await prisma.productItem.findMany({
-      where: { sn: { in: itemSNs }, branchId: fromBranchId, status: 'AVAILABLE' }
+      where: { 
+        branchId: fromBranchId, 
+        status: { in: ['AVAILABLE', 'Available'] },
+        OR: [
+          { sn: { in: cleanInputSNs, mode: 'insensitive' } },
+          { product: { sku: { in: cleanInputSNs, mode: 'insensitive' } } },
+          { id: { in: cleanInputSNs } }
+        ]
+      },
+      include: { product: true }
     });
 
-    if (dbProductItems.length !== items.length) {
-      return res.status(400).json({ success: false, error: 'Beberapa produk tidak ditemukan atau tidak tersedia' });
-    }
-
-    for (const item of items) {
-      const dbItem = dbProductItems.find(p => p.sn === item.sn);
-      if (!dbItem || dbItem.qty < item.qty) {
-        return res.status(400).json({ success: false, error: `Produk dengan SN ${item.sn} tidak tersedia dalam jumlah yang cukup.` });
-      }
+    if (dbProductItems.length === 0) {
+      return res.status(400).json({ success: false, error: 'Tidak ada produk yang valid dan tersedia di cabang ini untuk di-transfer' });
     }
 
     // Generate unique Transfer Number
@@ -362,7 +393,6 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
     const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const transferNumber = `TO-${dateStr}-${randomSuffix}`;
 
-    // Create Draft Transfer Order and split batches if necessary
     const transferOrder = await prisma.$transaction(async (tx) => {
       const to = await tx.transferOrder.create({
         data: {
@@ -371,34 +401,40 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
           toBranchId,
           status: 'Draft',
           notes,
-          createdBy: req.user?.name
+          createdBy: req.user?.name || 'Admin'
         }
       });
 
       for (const item of items) {
-        const dbItem = dbProductItems.find(p => p.sn === item.sn)!;
+        const itemIdentifier = String(item.sn || item.productItemId || item.id || '').trim().toLowerCase();
+        const dbItem = dbProductItems.find(p => 
+          p.sn.toLowerCase() === itemIdentifier || 
+          p.product.sku.toLowerCase() === itemIdentifier ||
+          p.id.toLowerCase() === itemIdentifier
+        );
         
+        if (!dbItem) continue;
+
+        const reqQty = Number(item.transferQty || item.qty || 1);
         let targetProductItemId = dbItem.id;
         
-        if (dbItem.qty === item.qty) {
-          // Full transfer, just update status
+        if (dbItem.qty <= reqQty) {
+          // Full transfer
           await tx.productItem.update({
             where: { id: dbItem.id },
             data: { status: 'IN_TRANSIT' }
           });
         } else {
-          // Partial transfer, split the batch
-          // Deduct from original
+          // Partial transfer
           await tx.productItem.update({
             where: { id: dbItem.id },
-            data: { qty: dbItem.qty - item.qty }
+            data: { qty: dbItem.qty - reqQty }
           });
           
-          // Create new batch for the transfer
           const newBatch = await tx.productItem.create({
             data: {
               sn: `${dbItem.sn}-TRF-${randomSuffix}`,
-              qty: item.qty,
+              qty: reqQty,
               status: 'IN_TRANSIT',
               productId: dbItem.productId,
               inboundBatchId: dbItem.inboundBatchId,
@@ -408,14 +444,13 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
           targetProductItemId = newBatch.id;
         }
 
-        // Create StockTransfer line item
         await tx.stockTransfer.create({
           data: {
             transferOrderId: to.id,
             fromBranchId,
             toBranchId,
             productItemId: targetProductItemId,
-            qty: item.qty,
+            qty: reqQty,
             status: 'Pending'
           }
         });
