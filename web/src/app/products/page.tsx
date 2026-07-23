@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { Search, Plus, Edit, Trash2, Upload, Loader2, Package, CheckCircle2, Tag, CheckSquare, Square, Download, Eye } from 'lucide-react';
 import { apiClient } from '@/lib/axios';
