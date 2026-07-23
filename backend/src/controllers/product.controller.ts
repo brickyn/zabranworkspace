@@ -20,10 +20,13 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
     // In Master-Detail architecture, Product is universal master data.
     // We remove branchId filters from the main product where clause because branchId is on ProductItem.
     // But we filter the included items so totalStock reflects the selected branch.
-    const itemsWhere: any = { status: 'AVAILABLE' };
+    const itemsWhere: any = { status: { in: ['AVAILABLE', 'Available', 'IN_TRANSIT', 'Reserved', 'QC_Pending'] } };
     if (branchId && branchId !== 'all') {
       itemsWhere.branchId = String(branchId);
     }
+
+    const categories = await prisma.category.findMany();
+    const catMap = new Map(categories.map(c => [c.id, c.name]));
 
     const [products, total, categoryCounts] = await Promise.all([
       prisma.product.findMany({
@@ -48,8 +51,8 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
     ]);
     
     const summary = categoryCounts.reduce((acc, curr) => {
-      const cat = curr.categoryId || 'Uncategorized';
-      acc[cat] = (acc[cat] || 0) + curr._count.id;
+      const catName = curr.categoryId ? (catMap.get(curr.categoryId) || 'Lainnya') : 'Lainnya';
+      acc[catName] = (acc[catName] || 0) + curr._count.id;
       return acc;
     }, {} as Record<string, number>);
 

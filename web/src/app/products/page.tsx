@@ -245,7 +245,7 @@ export default function ProductsPage() {
         return {
           sku: String(row['SKU'] || row['sku'] || row['ID Produk'] || row['id'] || ''),
           name: String(row['NAME'] || row['name'] || row['Name'] || ''),
-          category: String(row['CATEGORY'] || row['category'] || row['Category'] || ''),
+          category: String(row['CATEGORY'] || row['category'] || row['Category'] || row['KATEGORI'] || row['Kategori'] || '').trim() || 'Laptop',
           brand: row['BRAND'] || row['brand'] || row['Brand'] || undefined,
           model: row['MODEL'] || row['model'] || row['Model'] || undefined,
           processor,
