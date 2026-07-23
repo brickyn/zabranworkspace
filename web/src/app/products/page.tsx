@@ -387,6 +387,32 @@ export default function ProductsPage() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number || 0);
   };
 
+  const displaySummary = useMemo(() => {
+    const counts: Record<string, number> = { Laptop: 0, Aksesoris: 0, Service: 0, Lainnya: 0 };
+    products.forEach((p: any) => {
+      let cat = (p.categoryName || p.category?.name || p.category || 'Laptop').trim();
+      if (!cat || cat === 'Uncategorized') cat = 'Laptop';
+      
+      const catLower = cat.toLowerCase();
+      if (catLower.includes('laptop') || catLower.includes('unit')) {
+        counts['Laptop'] = (counts['Laptop'] || 0) + 1;
+      } else if (catLower.includes('aksesoris') || catLower.includes('accessories')) {
+        counts['Aksesoris'] = (counts['Aksesoris'] || 0) + 1;
+      } else if (catLower.includes('service') || catLower.includes('jasa')) {
+        counts['Service'] = (counts['Service'] || 0) + 1;
+      } else {
+        counts['Lainnya'] = (counts['Lainnya'] || 0) + 1;
+      }
+    });
+
+    return {
+      Laptop: summary['Laptop'] ?? counts['Laptop'],
+      Aksesoris: summary['Aksesoris'] ?? counts['Aksesoris'],
+      Service: summary['Service'] ?? counts['Service'],
+      Lainnya: summary['Lainnya'] ?? counts['Lainnya']
+    };
+  }, [products, summary]);
+
   return (
     <DashboardLayout>
       <div className="h-full flex flex-col gap-6">
@@ -505,28 +531,28 @@ export default function ProductsPage() {
             <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="text-muted text-sm mb-1 font-medium z-10">Total Laptop</span>
             <span className="text-2xl font-bold text-white z-10">
-              {summary['Laptop'] || 0} <span className="text-sm font-normal text-gray-500">unit</span>
+              {displaySummary['Laptop'] || 0} <span className="text-sm font-normal text-gray-500">unit</span>
             </span>
           </div>
           <div className="bg-glass-bg p-5 rounded-2xl border border-glass-border flex flex-col relative overflow-hidden group">
             <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="text-muted text-sm mb-1 font-medium z-10">Total Aksesoris</span>
             <span className="text-2xl font-bold text-white z-10">
-              {summary['Aksesoris'] || 0} <span className="text-sm font-normal text-gray-500">pcs</span>
+              {displaySummary['Aksesoris'] || 0} <span className="text-sm font-normal text-gray-500">pcs</span>
             </span>
           </div>
           <div className="bg-glass-bg p-5 rounded-2xl border border-glass-border flex flex-col relative overflow-hidden group">
             <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="text-muted text-sm mb-1 font-medium z-10">Total Jasa Service</span>
             <span className="text-2xl font-bold text-white z-10">
-              {summary['Service'] || 0} <span className="text-sm font-normal text-gray-500">items</span>
+              {displaySummary['Service'] || 0} <span className="text-sm font-normal text-gray-500">items</span>
             </span>
           </div>
           <div className="bg-glass-bg p-5 rounded-2xl border border-glass-border flex flex-col relative overflow-hidden group">
             <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="text-muted text-sm mb-1 font-medium z-10">Kategori Lainnya</span>
             <span className="text-2xl font-bold text-white z-10">
-               {Object.entries(summary).filter(([k]) => !['Laptop', 'Aksesoris', 'Service'].includes(k)).reduce((acc, [_, v]) => acc + v, 0)} 
+               {displaySummary['Lainnya'] || 0}
                <span className="text-sm font-normal text-gray-500"> items</span>
             </span>
           </div>
