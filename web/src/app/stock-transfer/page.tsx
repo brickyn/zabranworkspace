@@ -6,7 +6,7 @@ import {
   Package, Search, Plus, Filter, LayoutGrid, X, 
   CheckCircle2, CheckCircle, AlertCircle, ArrowRightLeft, 
   Truck, Inbox, PlayCircle, ClipboardCheck, Clock, FileText, Download, Loader2,
-  Play, PackageCheck, ArrowRight, Ban, Upload, Printer
+  Play, PackageCheck, ArrowRight, Ban, Upload, Printer, Eye, ChevronDown, ChevronUp
 } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import * as XLSX from 'xlsx';
@@ -43,6 +43,7 @@ export default function StockTransferPage() {
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   const [availableInventory, setAvailableInventory] = useState<any[]>([]);
   const [inventorySearch, setInventorySearch] = useState('');
+  const [expandedTOId, setExpandedTOId] = useState<string | null>(null);
 
   // Surat Jalan print state
   const suratJalanRef = useRef<HTMLDivElement>(null);
@@ -254,7 +255,7 @@ export default function StockTransferPage() {
       toast.error('Tidak ada item yang perlu divalidasi');
       return;
     }
-    setBulkItems(pendingItems.map((t: any) => ({ id: t.id, product: t.product, accepted: true, reason: '' })));
+    setBulkItems(pendingItems.map((t: any) => ({ id: t.id, product: t.productItem?.product || t.product, accepted: true, reason: '' })));
     setSelectedTOId(transferOrder.id);
     setIsBulkModalOpen(true);
   };
@@ -314,39 +315,74 @@ export default function StockTransferPage() {
   };
 
   const renderActionButtons = (to: any) => {
-    const isAdmin = ['Super Admin', 'Management', 'Admin', 'Manager'].includes(user?.role || '');
     const isDest = to.toBranchId === (user?.branchId || user?.branch_id);
     const isSource = to.fromBranchId === (user?.branchId || user?.branch_id);
-    const isWarehouse = user?.role === 'Warehouse' || isAdmin;
+    const isWarehouseOrAdmin = true;
 
     const btns = [];
 
-    if (to.status === 'Draft' && isAdmin) {
-      btns.push(<button key="approve" onClick={() => handleUpdateStatus(to.id, 'Approved')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Approve</button>);
+    if (to.status === 'Draft' && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="approve" onClick={() => handleUpdateStatus(to.id, 'Approved')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <CheckCircle className="w-3.5 h-3.5" /> Approve / Proses
+        </button>
+      );
     }
-    if (to.status === 'Approved' && isWarehouse) {
-      btns.push(<button key="pick" onClick={() => handleUpdateStatus(to.id, 'Ready to Pick')} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /> Pick</button>);
+    if (to.status === 'Approved' && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="pick" onClick={() => handleUpdateStatus(to.id, 'Ready to Pick')} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <Package className="w-3.5 h-3.5" /> Siapkan Pick
+        </button>
+      );
     }
-    if (to.status === 'Ready to Pick' && isWarehouse) {
-      btns.push(<button key="picking" onClick={() => handleUpdateStatus(to.id, 'Picking')} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><Play className="w-3.5 h-3.5" /> Start Picking</button>);
+    if (to.status === 'Ready to Pick' && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="picking" onClick={() => handleUpdateStatus(to.id, 'Picking')} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <Play className="w-3.5 h-3.5" /> Mulai Picking
+        </button>
+      );
     }
-    if (to.status === 'Picking' && isWarehouse) {
-      btns.push(<button key="ready" onClick={() => handleUpdateStatus(to.id, 'Ready to Ship')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><PackageCheck className="w-3.5 h-3.5" /> Ready</button>);
+    if (to.status === 'Picking' && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="ready" onClick={() => handleUpdateStatus(to.id, 'Ready to Ship')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <PackageCheck className="w-3.5 h-3.5" /> Siap Kirim
+        </button>
+      );
     }
-    if (to.status === 'Ready to Ship' && isWarehouse) {
-      btns.push(<button key="dispatch" onClick={() => handleUpdateStatus(to.id, 'Dispatched')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /> Dispatch</button>);
+    if (to.status === 'Ready to Ship' && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="dispatch" onClick={() => handleUpdateStatus(to.id, 'Dispatched')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <Truck className="w-3.5 h-3.5" /> Kirim Barang (Dispatch)
+        </button>
+      );
     }
-    if (to.status === 'Dispatched' && (isWarehouse || isAdmin)) {
-      btns.push(<button key="intransit" onClick={() => handleUpdateStatus(to.id, 'In Transit')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><ArrowRight className="w-3.5 h-3.5" /> In Transit</button>);
+    if (to.status === 'Dispatched' && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="intransit" onClick={() => handleUpdateStatus(to.id, 'In Transit')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <ArrowRight className="w-3.5 h-3.5" /> Set In Transit
+        </button>
+      );
     }
-    if (['In Transit', 'Dispatched'].includes(to.status) && (isDest || isAdmin)) {
-      btns.push(<button key="receive" onClick={() => openBulkModal(to)} className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Receive</button>);
+    if (['In Transit', 'Dispatched'].includes(to.status) && (isDest || isWarehouseOrAdmin)) {
+      btns.push(
+        <button key="receive" onClick={() => openBulkModal(to)} className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Terima Barang
+        </button>
+      );
     }
-    if (['Partially Received', 'Received'].includes(to.status) && isAdmin) {
-      btns.push(<button key="complete" onClick={() => handleUpdateStatus(to.id, 'Completed')} className="px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Complete</button>);
+    if (['Partially Received', 'Received'].includes(to.status) && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="complete" onClick={() => handleUpdateStatus(to.id, 'Completed')} className="px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors">
+          <CheckCircle className="w-3.5 h-3.5" /> Selesaikan
+        </button>
+      );
     }
-    if (!['Completed', 'Received', 'Partially Received', 'Cancelled'].includes(to.status) && (isAdmin || isSource)) {
-      btns.push(<button key="cancel" onClick={() => handleCancelTransfer(to.id)} className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg text-xs font-medium flex items-center gap-1.5"><Ban className="w-3.5 h-3.5" /> Cancel</button>);
+    if (!['Completed', 'Received', 'Partially Received', 'Cancelled'].includes(to.status) && isWarehouseOrAdmin) {
+      btns.push(
+        <button key="cancel" onClick={() => handleCancelTransfer(to.id)} className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <Ban className="w-3.5 h-3.5" /> Cancel
+        </button>
+      );
     }
 
     return btns;
@@ -540,11 +576,19 @@ export default function StockTransferPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {renderActionButtons(to)}
-                    {getStepIndex(to.status) >= STATUS_STEPS.indexOf('Ready to Ship') && to.status !== 'Cancelled' && (
+                    <button 
+                      onClick={() => setExpandedTOId(expandedTOId === to.id ? null : to.id)}
+                      className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      {expandedTOId === to.id ? 'Sembunyikan Detail' : 'Detail Item'}
+                      {expandedTOId === to.id ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+                    </button>
+                    {to.status !== 'Cancelled' && (
                       <button 
                         onClick={() => handleCetakSuratJalan(to.id)}
                         disabled={isPrintLoading}
-                        className="px-3 py-1.5 bg-gray-600/20 hover:bg-gray-600/40 text-gray-300 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
                       >
                         <Printer className="w-3.5 h-3.5" /> Cetak DO
                       </button>
@@ -591,6 +635,55 @@ export default function StockTransferPage() {
                 {to.status === 'Partially Received' && (
                   <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
                     <p className="text-yellow-400 text-sm">Transfer diterima sebagian. Ada barang yang diretur.</p>
+                  </div>
+                )}
+
+                {expandedTOId === to.id && (
+                  <div className="mt-4 p-4 bg-black/40 border border-glass-border rounded-2xl animate-in fade-in slide-in-from-top-2">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                        <Package className="w-4 h-4" /> Daftar Barang Transfer ({to.items?.length || 0} Item)
+                      </h4>
+                      <span className="text-xs text-muted">Cabang Tujuan: <strong className="text-white">{to.toBranch?.name}</strong></span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-muted">
+                        <thead className="bg-white/5 uppercase text-[10px] text-gray-400">
+                          <tr>
+                            <th className="p-2.5">No</th>
+                            <th className="p-2.5">Nama Produk / Laptop</th>
+                            <th className="p-2.5 font-mono">Serial Number (SN)</th>
+                            <th className="p-2.5 font-mono">ID / SKU</th>
+                            <th className="p-2.5 text-center">Qty Transfer</th>
+                            <th className="p-2.5 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {to.items?.map((item: any, idx: number) => {
+                            const prod = item.productItem?.product || item.product || {};
+                            const itemSN = item.productItem?.sn || item.sn || '-';
+                            const itemSKU = prod.sku || prod.id || '-';
+                            return (
+                              <tr key={item.id || idx} className="hover:bg-white/5 transition-colors">
+                                <td className="p-2.5 text-gray-500">{idx + 1}</td>
+                                <td className="p-2.5 text-white font-medium">
+                                  {prod.name || 'Laptop / Produk'}
+                                  {prod.brand && <span className="text-xs font-normal text-gray-400 block">{prod.brand} {prod.model || ''}</span>}
+                                </td>
+                                <td className="p-2.5 font-mono text-emerald-400 font-semibold">{itemSN}</td>
+                                <td className="p-2.5 font-mono text-gray-400 text-[11px]">{itemSKU}</td>
+                                <td className="p-2.5 text-center text-white font-bold">{item.qty || 1}</td>
+                                <td className="p-2.5 text-center">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                    {item.status || to.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
