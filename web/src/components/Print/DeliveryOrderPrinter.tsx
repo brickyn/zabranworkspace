@@ -1,6 +1,7 @@
 'use client';
 
 import React, { forwardRef } from 'react';
+import { LOGO_ZABRAN_BASE64 } from './logoBase64';
 
 interface DeliveryOrderItem {
   id: string;
@@ -105,12 +106,9 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
           {/* Left Company Info with Logo */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <img 
-              src="/logo-zabran.png" 
+              src={LOGO_ZABRAN_BASE64} 
               alt="Logo PT Zabran" 
-              style={{ height: '48px', objectFit: 'contain', marginBottom: '6px' }}
-              onError={(e) => {
-                (e.target as HTMLElement).setAttribute('src', '/logo-zabran-group.jpg');
-              }}
+              style={{ height: '52px', width: 'auto', objectFit: 'contain', marginBottom: '8px' }} 
             />
             <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#000' }}>{companyName}</h2>
             <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#333' }}>Email: pt.zabraninternasional@gmail.com</p>
