@@ -70,11 +70,19 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
         backgroundColor: '#fff',
         boxSizing: 'border-box',
       }}>
-        {/* Header Section */}
+        {/* Top Header Section */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-          {/* Left Company Info */}
-          <div>
-            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#000' }}>{companyName}</h2>
+          {/* Left Company Info with Logo */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <img 
+              src="/logo-zabran.png" 
+              alt="Logo PT Zabran" 
+              style={{ height: '48px', objectFit: 'contain', marginBottom: '6px' }}
+              onError={(e) => {
+                (e.target as HTMLElement).setAttribute('src', '/logo-zabran-group.jpg');
+              }}
+            />
+            <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#000' }}>{companyName}</h2>
             <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#333' }}>Email: pt.zabraninternasional@gmail.com</p>
             <p style={{ margin: '1px 0 0 0', fontSize: '10px', color: '#333' }}>Telp: +6288218171011</p>
             <p style={{ margin: '1px 0 0 0', fontSize: '10px', color: '#333', maxWidth: '340px', lineHeight: '1.3' }}>
@@ -82,43 +90,43 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
             </p>
           </div>
 
-          {/* Right Metadata Header */}
-          <div style={{ textAlign: 'left', fontSize: '11px', minWidth: '220px' }}>
+          {/* Right Metadata Table Header */}
+          <div style={{ textAlign: 'left', fontSize: '11px', minWidth: '240px', marginTop: '5px' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
               <tbody>
                 <tr>
-                  <td style={{ padding: '1px 4px', color: '#333', width: '60px' }}>Perihal</td>
-                  <td style={{ padding: '1px 4px' }}>: Distribusi</td>
+                  <td style={{ padding: '2px 4px', color: '#333', width: '65px' }}>Perihal</td>
+                  <td style={{ padding: '2px 4px' }}>: Distribusi</td>
                 </tr>
                 <tr>
-                  <td style={{ padding: '1px 4px', color: '#333' }}>Asal</td>
-                  <td style={{ padding: '1px 4px', fontWeight: 'bold' }}>: {fromBranch?.name || companyName}</td>
+                  <td style={{ padding: '2px 4px', color: '#333' }}>Asal</td>
+                  <td style={{ padding: '2px 4px', fontWeight: 'bold' }}>: {fromBranch?.name || companyName}</td>
                 </tr>
                 <tr>
-                  <td style={{ padding: '1px 4px', color: '#333' }}>Tujuan</td>
-                  <td style={{ padding: '1px 4px', fontWeight: 'bold' }}>: {toBranch?.name || '-'}</td>
+                  <td style={{ padding: '2px 4px', color: '#333' }}>Tujuan</td>
+                  <td style={{ padding: '2px 4px', fontWeight: 'bold' }}>: {toBranch?.name || '-'}</td>
                 </tr>
                 <tr>
-                  <td style={{ padding: '1px 4px', color: '#333' }}>Tanggal</td>
-                  <td style={{ padding: '1px 4px' }}>: {formatDateIndonesian(date)}</td>
+                  <td style={{ padding: '2px 4px', color: '#333' }}>Tanggal</td>
+                  <td style={{ padding: '2px 4px' }}>: {formatDateIndonesian(date)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Title Center */}
+        {/* Title Center Section */}
         <div style={{ textAlign: 'center', margin: '20px 0 15px 0' }}>
           <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', letterSpacing: '1px' }}>SURAT JALAN</h1>
           <p style={{ margin: '3px 0 0 0', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.5px' }}>{batchId}</p>
         </div>
 
-        {/* Table Items */}
+        {/* Items Table */}
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
           <thead>
             <tr style={{ backgroundColor: '#fff', borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>
               <th style={{ border: '1px solid #333', padding: '6px 4px', textAlign: 'center', width: '30px', fontSize: '11px' }}>No</th>
-              <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'left', width: '140px', fontSize: '11px' }}>Kode Barang</th>
+              <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'left', width: '145px', fontSize: '11px', whiteSpace: 'nowrap' }}>Kode Barang</th>
               <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'left', fontSize: '11px' }}>Nama Barang</th>
               <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'left', width: '150px', fontSize: '11px' }}>Keterangan</th>
               <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'right', width: '90px', fontSize: '11px' }}>Harga Jual</th>
@@ -135,20 +143,20 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
 
               return (
                 <tr key={item.id || idx}>
-                  <td style={{ border: '1px solid #333', padding: '5px 4px', textAlign: 'center', fontSize: '10px' }}>{idx + 1}</td>
-                  <td style={{ border: '1px solid #333', padding: '5px 8px', fontSize: '10px', fontFamily: 'monospace' }}>
+                  <td style={{ border: '1px solid #333', padding: '6px 4px', textAlign: 'center', fontSize: '10px' }}>{idx + 1}</td>
+                  <td style={{ border: '1px solid #333', padding: '6px 8px', fontSize: '10px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                     {kodeBarang} <span style={{ marginLeft: '4px', fontWeight: 'bold' }}>✓</span>
                   </td>
-                  <td style={{ border: '1px solid #333', padding: '5px 8px', fontSize: '10px' }}>
+                  <td style={{ border: '1px solid #333', padding: '6px 8px', fontSize: '10px' }}>
                     {namaBarang}
                   </td>
-                  <td style={{ border: '1px solid #333', padding: '5px 8px', fontSize: '10px' }}>
+                  <td style={{ border: '1px solid #333', padding: '6px 8px', fontSize: '10px' }}>
                     {item.notes || '+ Charger ✓'}
                   </td>
-                  <td style={{ border: '1px solid #333', padding: '5px 8px', textAlign: 'right', fontSize: '10px' }}>
+                  <td style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'right', fontSize: '10px' }}>
                     {hargaFormatted}
                   </td>
-                  <td style={{ border: '1px solid #333', padding: '5px 4px', textAlign: 'center', fontSize: '10px' }}>
+                  <td style={{ border: '1px solid #333', padding: '6px 4px', textAlign: 'center', fontSize: '10px' }}>
                     {item.qty || 1}
                   </td>
                 </tr>
@@ -157,14 +165,14 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
           </tbody>
         </table>
 
-        {/* Notes if any */}
+        {/* Notes Section if available */}
         {notes && (
           <div style={{ marginBottom: '15px', padding: '6px 10px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '10px' }}>
             <strong>Catatan Tambahan:</strong> {notes}
           </div>
         )}
 
-        {/* Bottom Signatures (3 Columns matching photo) */}
+        {/* Bottom Signatures (3 Columns) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px', padding: '0 10px' }}>
           <div style={{ textAlign: 'center', width: '30%' }}>
             <p style={{ margin: '0 0 55px 0', fontWeight: 'bold', fontSize: '11px' }}>Mengetahui,</p>
