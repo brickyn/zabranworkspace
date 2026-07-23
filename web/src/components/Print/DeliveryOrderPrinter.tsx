@@ -57,7 +57,35 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
       } catch (e) {
         return date;
       }
+    const getFormattedSuratJalanNo = (rawId: string, dateVal: string, fromName?: string, toName?: string) => {
+      if (rawId && rawId.includes('/')) return rawId;
+      
+      const d = new Date(dateVal || Date.now());
+      const day = String(d.getDate()).padStart(2, '0');
+      const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+      const monthRoman = romanMonths[d.getMonth()] || 'VII';
+      const year = d.getFullYear();
+
+      const digitsMatch = (rawId || '').match(/\d+$/);
+      const seqStr = digitsMatch ? String(digitsMatch[0]).padStart(4, '0') : '0012';
+
+      const getCode = (name?: string, fallback = 'ZBN') => {
+        if (!name) return fallback;
+        const clean = name.replace(/gudang|warehouse|toko|cabang|utama/gi, '').trim();
+        const words = clean.split(/\s+/).filter(Boolean);
+        if (words.length >= 3) return words.map(w => w[0]).join('').toUpperCase();
+        if (words.length === 2) return (words[0].slice(0, 2) + words[1][0]).toUpperCase();
+        if (words.length === 1 && words[0].length >= 3) return words[0].slice(0, 3).toUpperCase();
+        return fallback;
+      };
+
+      const fromCode = getCode(fromName, 'STB');
+      const toCode = getCode(toName, 'ILB');
+
+      return `${seqStr}/${toCode}/${fromCode}/BA-ZBN/${day}/${monthRoman}/${year}`;
     };
+
+    const displaySuratJalanNo = getFormattedSuratJalanNo(batchId, date, fromBranch?.name, toBranch?.name);
 
     return (
       <div ref={ref} style={{
@@ -118,7 +146,7 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
         {/* Title Center Section */}
         <div style={{ textAlign: 'center', margin: '20px 0 15px 0' }}>
           <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', letterSpacing: '1px' }}>SURAT JALAN</h1>
-          <p style={{ margin: '3px 0 0 0', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.5px' }}>{batchId}</p>
+          <p style={{ margin: '3px 0 0 0', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.5px' }}>{displaySuratJalanNo}</p>
         </div>
 
         {/* Items Table */}

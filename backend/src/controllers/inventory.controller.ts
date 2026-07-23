@@ -393,16 +393,42 @@ export const createTransfers = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, error: 'Tidak ada produk yang valid dan tersedia di cabang ini untuk di-transfer' });
     }
 
-    // Generate unique Transfer Number
+    // Generate unique Transfer Number & DO Number (Surat Jalan Format)
     const now = new Date();
     const dateStr = now.toISOString().slice(2,10).replace(/-/g,''); 
     const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const transferNumber = `TO-${dateStr}-${randomSuffix}`;
 
+    const totalCount = await prisma.transferOrder.count();
+    const seqNum = String(totalCount + 1).padStart(4, '0');
+    const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+    const monthRoman = romanMonths[now.getMonth()];
+    const dayStr = String(now.getDate()).padStart(2, '0');
+    const yearStr = now.getFullYear();
+
+    const fromB = await prisma.branch.findUnique({ where: { id: fromBranchId } });
+    const toB = await prisma.branch.findUnique({ where: { id: toBranchId } });
+
+    const getBranchCode = (name?: string, fallback = 'ZBN') => {
+      if (!name) return fallback;
+      const clean = name.replace(/gudang|warehouse|toko|cabang|utama/gi, '').trim();
+      const words = clean.split(/\s+/).filter(Boolean);
+      if (words.length >= 3) return words.map(w => w[0]).join('').toUpperCase();
+      if (words.length === 2) return (words[0].slice(0, 2) + words[1][0]).toUpperCase();
+      if (words.length === 1 && words[0].length >= 3) return words[0].slice(0, 3).toUpperCase();
+      return fallback;
+    };
+
+    const fromCode = getBranchCode(fromB?.name, 'STB');
+    const toCode = getBranchCode(toB?.name, 'ILB');
+
+    const doNumber = `${seqNum}/${toCode}/${fromCode}/BA-ZBN/${dayStr}/${monthRoman}/${yearStr}`;
+
     const transferOrder = await prisma.$transaction(async (tx) => {
       const to = await tx.transferOrder.create({
         data: {
           transferNumber,
+          doNumber,
           fromBranchId,
           toBranchId,
           status: 'Draft',
