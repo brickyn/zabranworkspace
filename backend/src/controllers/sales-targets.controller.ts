@@ -36,7 +36,7 @@ export const getSalesTargets = async (req: AuthRequest, res: Response): Promise<
         },
         include: {
           items: {
-            include: { product: true }
+            include: { productItem: { include: { product: true } } }
           }
         }
       });
@@ -46,16 +46,17 @@ export const getSalesTargets = async (req: AuthRequest, res: Response): Promise<
       let currentAksesorisSales = 0;
       let currentItemsSold = 0;
 
-      transactions.forEach(tx => {
-        tx.items.forEach(item => {
-          const cat = item.product.category?.toLowerCase() || '';
+      (transactions as any[]).forEach(tx => {
+        (tx.items || []).forEach((item: any) => {
+          const product = item.productItem?.product || item.product || {};
+          const cat = (product.category || '').toLowerCase();
           if (cat.includes('service')) {
-            currentServiceSales += item.subtotal;
+            currentServiceSales += item.subtotal || 0;
           } else if (cat.includes('aksesoris')) {
-            currentAksesorisSales += item.subtotal;
-            currentItemsSold += 1; // Assuming accessories count towards item target too
+            currentAksesorisSales += item.subtotal || 0;
+            currentItemsSold += 1;
           } else {
-            currentSales += item.subtotal;
+            currentSales += item.subtotal || 0;
             currentItemsSold += 1;
           }
         });

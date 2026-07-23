@@ -31,9 +31,9 @@ export const createRental = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    // Update Product Status to "Rented"
-    await prisma.product.update({
-      where: { id: productId },
+    // Update Product Item Status to "Rented" if productItemId exists
+    await prisma.productItem.updateMany({
+      where: { productId },
       data: { status: 'Rented' }
     });
 
@@ -79,8 +79,8 @@ export const updateRentalStatus = async (req: AuthRequest, res: Response): Promi
     });
 
     if (status === 'Returned') {
-      await prisma.product.update({
-        where: { id: rental.productId },
+      await prisma.productItem.updateMany({
+        where: { productId: rental.productId },
         data: { status: 'Available' }
       });
     }

@@ -65,7 +65,7 @@ export class ZPOSController {
         include: {
           fromBranch: true,
           items: {
-            include: { product: true }
+            include: { productItem: { include: { product: true } } }
           }
         },
         orderBy: { createdAt: 'desc' }
@@ -97,7 +97,7 @@ export class ZPOSController {
           fromBranch: true,
           toBranch: true,
           items: {
-            include: { product: true }
+            include: { productItem: { include: { product: true } } }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -113,14 +113,14 @@ export class ZPOSController {
   // Transfer Detail
   public getTransferDetail = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const transfer = await prisma.transferOrder.findUnique({
         where: { id },
         include: {
           fromBranch: true,
           toBranch: true,
           items: {
-            include: { product: true }
+            include: { productItem: { include: { product: true } } }
           }
         }
       });
@@ -139,7 +139,7 @@ export class ZPOSController {
   // Receive Goods & Report Discrepancy
   public receiveTransfer = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = String(req.params.id);
       const { items } = req.body; // Array of { stockTransferId, receivedStatus, discrepancyNotes }
       const userId = req.user?.id;
 
@@ -170,29 +170,12 @@ export class ZPOSController {
           });
 
           if (receivedStatus === 'Received') {
-            // Update stock logic would go here.
-            // ZPOS just updates inventory at the store.
-            const inventory = await tx.inventory.findFirst({
-              where: { productId: updatedItem.productId, branchId: transfer.toBranchId }
-            });
-            if (inventory) {
-              await tx.inventory.update({
-                where: { id: inventory.id },
-                data: { stock: { increment: 1 } }
-              });
-            } else {
-              await tx.inventory.create({
-                data: {
-                  productId: updatedItem.productId,
-                  branchId: transfer.toBranchId,
-                  stock: 1
-                }
+            if (updatedItem.productItemId) {
+              await tx.productItem.update({
+                where: { id: updatedItem.productItemId },
+                data: { branchId: transfer.toBranchId, status: 'Available' }
               });
             }
-            await tx.stockTransfer.update({
-              where: { id: stockTransferId },
-              data: { status: 'Received' }
-            });
           } else if (receivedStatus !== 'Pending') {
             hasDiscrepancy = true;
           }
@@ -247,7 +230,7 @@ export class ZPOSController {
       ]);
 
       const revenueToday = todayTransactions.reduce((sum, tx) => sum + tx.totalAmount, 0);
-      const unitsSoldToday = todayTransactions.reduce((sum, tx) => sum + (tx.totalItems || 0), 0);
+      const unitsSoldToday = (todayTransactions as any[]).reduce((sum, tx) => sum + (tx.totalItems || 0), 0);
 
       const totalRevenue = totalTransactions.reduce((sum, tx) => sum + tx.totalAmount, 0);
 

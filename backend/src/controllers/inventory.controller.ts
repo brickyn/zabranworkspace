@@ -70,7 +70,7 @@ export const getStockSummary = async (req: AuthRequest, res: Response) => {
     }
 
     // Group by status
-    const statusCounts = await prisma.product.groupBy({
+    const statusCounts = await prisma.productItem.groupBy({
       by: ['status'],
       where: whereClause,
       _count: {
@@ -85,8 +85,6 @@ export const getStockSummary = async (req: AuthRequest, res: Response) => {
 
     statusCounts.forEach(item => {
       const count = item._count.id;
-      // All items physically or logically belonging to this branch's warehouse pool
-      // Excludes Sold, Return_Supplier unless they are considered outside warehouse.
       if (['Available', 'Reserved', 'Damaged', 'Service', 'QC_Pending'].includes(item.status)) {
         warehouseStock += count;
       }
@@ -94,7 +92,6 @@ export const getStockSummary = async (req: AuthRequest, res: Response) => {
       if (item.status === 'Reserved') reservedStock += count;
       if (item.status === 'In Transit') {
         inTransit += count;
-        // In Transit is sometimes considered part of warehouse stock until received
         warehouseStock += count; 
       }
       if (item.status === 'Available') availableStock += count;
@@ -208,13 +205,14 @@ export const bulkImport = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.$transaction(
-      rows.map((row) =>
-        prisma.product.upsert({
+      rows.map((row) => {
+        const { status, branchId: rowBranch, ...productData } = row as any;
+        return prisma.product.upsert({
           where: { id: String(row.id) },
-          update: { ...row, branchId },
-          create: { ...row, branchId },
-        })
-      )
+          update: { ...productData, branchId },
+          create: { ...productData, sku: String(row.id), branchId },
+        });
+      })
     );
     res.json({ success: true, message: `${rows.length} products imported/updated` });
   } catch (error) {
@@ -307,7 +305,7 @@ export const getSuratJalanById = async (req: Request, res: Response) => {
         fromBranch: { select: { id: true, name: true, address: true, phone: true } },
         toBranch: { select: { id: true, name: true, address: true, phone: true } },
         items: {
-          include: { product: { select: { id: true, name: true, brand: true, model: true, serialNumber: true, category: true, condition: true, grade: true } } }
+          include: { productItem: { include: { product: { select: { id: true, name: true, brand: true, model: true, serialNumber: true, category: true, condition: true, grade: true } } } } }
         }
       }
     });

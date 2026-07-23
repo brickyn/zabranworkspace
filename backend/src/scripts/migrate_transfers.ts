@@ -7,7 +7,7 @@ async function main() {
   
   const transfers = await prisma.stockTransfer.findMany({
     where: { transferOrderId: null },
-    include: { product: true }
+    include: { productItem: { include: { product: true } } }
   });
 
   if (transfers.length === 0) {

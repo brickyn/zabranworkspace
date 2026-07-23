@@ -25,7 +25,11 @@ export const getLaporan = async (req: AuthRequest, res: Response): Promise<void>
         customer: true,
         items: {
           include: {
-            product: true
+            productItem: {
+              include: {
+                product: true
+              }
+            }
           }
         }
       },
@@ -69,7 +73,7 @@ export const exportLaporan = async (req: AuthRequest, res: Response): Promise<vo
           cashier: true,
           customer: true,
           branch: true,
-          items: { include: { product: true } }
+          items: { include: { productItem: { include: { product: true } } } }
         },
         orderBy: { createdAt: 'desc' }
       });
@@ -77,25 +81,26 @@ export const exportLaporan = async (req: AuthRequest, res: Response): Promise<vo
       const salesData: any[] = [];
       let sumHargaBeli = 0, sumHargaJual = 0, sumTotal = 0, sumDiskon = 0;
 
-      transactions.forEach(tx => {
-        tx.items.forEach(item => {
-          const product = item.product;
-          sumHargaBeli += product.buyPrice;
-          sumHargaJual += item.sellingPrice;
-          sumTotal += item.subtotal;
-          sumDiskon += item.discount;
+      (transactions as any[]).forEach(tx => {
+        (tx.items || []).forEach((item: any) => {
+          const product = item.productItem?.product || item.product || {};
+          const buyPrice = product.buyPrice || 0;
+          sumHargaBeli += buyPrice;
+          sumHargaJual += item.sellingPrice || 0;
+          sumTotal += item.subtotal || 0;
+          sumDiskon += item.discount || 0;
 
           salesData.push({
             'Tanggal': new Date(tx.createdAt).toLocaleDateString('id-ID'),
             'Kode Transaksi': tx.id,
-            'Cabang': (tx as any).branch?.name || '-',
+            'Cabang': tx.branch?.name || '-',
             'Kategori': product.category || 'Laptop',
-            'Kode Barang': product.id,
-            'Nama Barang': product.name,
-            'Harga Beli': product.buyPrice,
-            'Harga Jual': item.sellingPrice,
-            'Diskon': item.discount,
-            'Total': item.subtotal,
+            'Kode Barang': product.id || '-',
+            'Nama Barang': product.name || 'Produk',
+            'Harga Beli': buyPrice,
+            'Harga Jual': item.sellingPrice || 0,
+            'Diskon': item.discount || 0,
+            'Total': item.subtotal || 0,
             'Metode Bayar': tx.paymentMethod,
             'Kasir': tx.cashier?.name || '-',
             'Pelanggan': tx.customer?.name || 'Umum',
@@ -207,7 +212,7 @@ export const exportLaporan = async (req: AuthRequest, res: Response): Promise<vo
       if (startDate && endDate) txWhereClause.createdAt = dateFilter;
 
       const [allTx, allRentals, allB2B, allBSB, allExp] = await Promise.all([
-        prisma.transaction.findMany({ where: txWhereClause, include: { items: { include: { product: true } } } }),
+        prisma.transaction.findMany({ where: txWhereClause, include: { items: { include: { productItem: { include: { product: true } } } } } }),
         prisma.rental.findMany({ where: { ...whereBranch, ...(startDate && endDate ? { createdAt: dateFilter } : {}) } }),
         prisma.b2BTransaction.findMany({ where: { ...(startDate && endDate ? { date: dateFilter } : {}) } }),
         prisma.bSBTransaction.findMany({ where: { ...(startDate && endDate ? { date: dateFilter } : {}) } }),
@@ -215,13 +220,14 @@ export const exportLaporan = async (req: AuthRequest, res: Response): Promise<vo
       ]);
 
       let incLaptop = 0, incService = 0, incAksesoris = 0, cogs = 0;
-      allTx.forEach(tx => {
-        tx.items.forEach(item => {
-          const cat = item.product.category?.toLowerCase() || '';
-          if (cat.includes('service')) incService += item.subtotal;
-          else if (cat.includes('aksesoris') || cat.includes('accessories')) incAksesoris += item.subtotal;
-          else incLaptop += item.subtotal;
-          cogs += item.product.buyPrice;
+      (allTx as any[]).forEach(tx => {
+        (tx.items || []).forEach((item: any) => {
+          const product = item.productItem?.product || item.product || {};
+          const cat = (product.category || '').toLowerCase();
+          if (cat.includes('service')) incService += item.subtotal || 0;
+          else if (cat.includes('aksesoris') || cat.includes('accessories')) incAksesoris += item.subtotal || 0;
+          else incLaptop += item.subtotal || 0;
+          cogs += product.buyPrice || 0;
         });
       });
 

@@ -112,8 +112,7 @@ export const completePurchase = async (req: AuthRequest, res: Response): Promise
     const po = await prisma.purchaseOrder.findFirst({
       where: {
         id,
-        // Jika bukan Super Admin, paksa filter berdasarkan branchId user
-        ...(userRole !== 'Super Admin' && { branchId: userBranchId })
+        ...(userRole !== 'Super Admin' && userBranchId ? { branchId: userBranchId } : {})
       },
       include: { items: true }
     });
@@ -124,21 +123,22 @@ export const completePurchase = async (req: AuthRequest, res: Response): Promise
     }
 
     // Persiapkan data produk yang akan dimasukkan ke inventaris
-    const productsToCreate = [];
+    const productsToCreate: any[] = [];
     const datePrefix = new Date().toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
 
-    for (const item of po.items) {
+    for (const item of (po as any).items || []) {
       for (let i = 0; i < item.quantity; i++) {
         const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const skuId = `PO-${datePrefix}-${randomStr}`;
         productsToCreate.push({
-          id: `PO-${datePrefix}-${randomStr}`,
+          id: skuId,
+          sku: skuId,
           name: item.name,
           category: item.category,
           brand: item.brand,
           buyPrice: item.buyPrice,
           sellPrice: item.sellPrice,
-          status: 'Available',
-          branchId: po.branchId // Aman karena kepemilikan cabang sudah divalidasi
+          branchId: po.branchId
         });
       }
     }

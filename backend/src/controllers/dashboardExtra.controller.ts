@@ -24,7 +24,7 @@ export const getHistoricalData = async (req: Request, res: Response): Promise<vo
 
     const transactions = await prisma.transaction.findMany({
       where: txWhere,
-      include: { items: { include: { product: true } }, branch: true },
+      include: { items: { include: { productItem: { include: { product: true } } } }, branch: true },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -88,7 +88,7 @@ export const getSalesSummary = async (req: Request, res: Response): Promise<void
     const transactions = await prisma.transaction.findMany({
       where: txWhere,
       include: {
-        items: { include: { product: true } },
+        items: { include: { productItem: { include: { product: true } } } },
         cashier: { select: { id: true, name: true } },
         branch: { select: { id: true, name: true } },
       },

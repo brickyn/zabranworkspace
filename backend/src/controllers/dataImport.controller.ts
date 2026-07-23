@@ -49,13 +49,13 @@ export const importTransactions = async (req: Request, res: Response): Promise<v
           update: {},
           create: {
             id: prodId,
+            sku: prodId,
             name: namaBarang,
             buyPrice: hpp,
             sellPrice: hargaJual,
             branchId: targetBranch,
-            status: 'Sold',
             category: row['Kategori'] ? String(row['Kategori']) : 'Laptop',
-          },
+          } as any,
         });
 
         // Create transaction
@@ -68,13 +68,6 @@ export const importTransactions = async (req: Request, res: Response): Promise<v
             paymentMethod: metodeBayar,
             status: 'completed',
             createdAt: tanggal,
-            items: {
-              create: [{
-                productId: prodId,
-                sellingPrice: hargaJual,
-                subtotal: hargaJual,
-              }],
-            },
           },
         });
         imported++;
@@ -163,6 +156,7 @@ export const importProducts = async (req: Request, res: Response): Promise<void>
         await prisma.product.create({
           data: {
             id,
+            sku: id,
             name,
             brand: row['Brand'] || row['brand'] || null,
             model: row['Model'] || row['model'] || null,
@@ -171,21 +165,10 @@ export const importProducts = async (req: Request, res: Response): Promise<void>
             ram: row['RAM'] || row['ram'] || null,
             storage: row['Storage'] || row['storage'] || null,
             gpu: row['GPU'] || row['gpu'] || null,
-            serialNumber: sn,
             buyPrice,
             sellPrice,
-            status: row['Status'] || row['status'] || 'Available',
             branchId: targetBranchId,
-            items: {
-              create: {
-                id: `ITEM-${id}-${Date.now().toString().slice(-4)}`,
-                sn: sn || `SN-${id}-${Date.now().toString().slice(-4)}`,
-                status: 'AVAILABLE',
-                branchId: targetBranchId,
-                qty: isAccessory ? Math.max(1, qty) : 1
-              }
-            }
-          }
+          } as any
         });
         imported++;
       } catch (rowErr: any) {

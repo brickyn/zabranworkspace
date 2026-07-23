@@ -18,7 +18,7 @@ export const getFinanceReport = async (req: AuthRequest, res: Response): Promise
     // 1. Get Income (Transactions & Service & Rentals)
     const transactions = await prisma.transaction.findMany({
       where: { ...whereBranch, status: 'completed', createdAt: { gte: startDate, lte: endDate } },
-      include: { items: { include: { product: true } } }
+      include: { items: { include: { productItem: { include: { product: true } } } } }
     });
 
     const rentals = await prisma.rental.findMany({
@@ -39,14 +39,15 @@ export const getFinanceReport = async (req: AuthRequest, res: Response): Promise
     let totalIncomeService = 0;
     let totalCOGS = 0;
 
-    transactions.forEach(tx => {
-      tx.items.forEach(item => {
-        const cat = item.product.category?.toLowerCase() || '';
+    (transactions as any[]).forEach(tx => {
+      (tx.items || []).forEach((item: any) => {
+        const product = item.productItem?.product || item.product || {};
+        const cat = (product.category || '').toLowerCase();
         if (cat.includes('service')) {
-          totalIncomeService += item.subtotal;
+          totalIncomeService += item.subtotal || 0;
         } else {
-          totalIncomeProduct += item.subtotal;
-          totalCOGS += item.product.buyPrice;
+          totalIncomeProduct += item.subtotal || 0;
+          totalCOGS += product.buyPrice || 0;
         }
       });
     });
