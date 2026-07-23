@@ -342,7 +342,7 @@ export const getSuratJalanById = async (req: Request, res: Response) => {
         fromBranch: { select: { id: true, name: true, address: true, phone: true } },
         toBranch: { select: { id: true, name: true, address: true, phone: true } },
         items: {
-          include: { productItem: { include: { product: { select: { id: true, name: true, brand: true, model: true, serialNumber: true, category: true, condition: true, grade: true } } } } }
+          include: { productItem: { include: { product: { select: { id: true, name: true, brand: true, model: true, sku: true, categoryId: true, condition: true, grade: true } } } } }
         }
       }
     });
