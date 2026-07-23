@@ -15,6 +15,8 @@ interface DeliveryOrderItem {
       brand?: string | null;
       model?: string | null;
       sku?: string | null;
+      sellPrice?: number | null;
+      price?: number | null;
     };
   };
   product?: {
@@ -23,9 +25,9 @@ interface DeliveryOrderItem {
     brand?: string | null;
     model?: string | null;
     serialNumber?: string | null;
-    category?: string | null;
-    condition?: string | null;
-    grade?: string | null;
+    sku?: string | null;
+    sellPrice?: number | null;
+    price?: number | null;
   };
 }
 
@@ -41,160 +43,149 @@ interface DeliveryOrderPrinterProps {
 }
 
 const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProps>(
-  ({ batchId, date, fromBranch, toBranch, items, notes, senderName = 'Gudang Zabran', companyName = 'ZABRAN WORKSPACES' }, ref) => {
-    const dateStr = new Date(date).toLocaleDateString('id-ID', {
-      day: '2-digit', month: 'long', year: 'numeric'
-    });
+  ({ batchId, date, fromBranch, toBranch, items, notes, companyName = 'Zabran Internasional Grup' }, ref) => {
+    const formatDateIndonesian = (dateInput: string) => {
+      try {
+        const d = new Date(dateInput);
+        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const dayName = days[d.getDay()] || '';
+        const dateNum = d.getDate();
+        const monthName = months[d.getMonth()] || '';
+        const year = d.getFullYear();
+        return `${dayName}, ${dateNum} ${monthName} ${year}`;
+      } catch (e) {
+        return date;
+      }
+    };
 
     return (
       <div ref={ref} style={{
         width: '210mm',
         minHeight: '297mm',
-        padding: '20mm 15mm',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px',
+        padding: '12mm 15mm',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '11px',
         color: '#000',
         backgroundColor: '#fff',
         boxSizing: 'border-box',
       }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '3px solid #000', paddingBottom: '15px' }}>
+        {/* Header Section */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
+          {/* Left Company Info */}
           <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', letterSpacing: '1px' }}>{companyName}</h1>
-            <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#555' }}>Sistem Manajemen Inventori & POS Terpadu</p>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#1a56db' }}>SURAT JALAN</h2>
-            <p style={{ margin: '4px 0 0 0', fontSize: '13px', fontWeight: 'bold', fontFamily: 'monospace', color: '#333' }}>
-              No: {batchId}
+            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#000' }}>{companyName}</h2>
+            <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#333' }}>Email: pt.zabraninternasional@gmail.com</p>
+            <p style={{ margin: '1px 0 0 0', fontSize: '10px', color: '#333' }}>Telp: +6288218171011</p>
+            <p style={{ margin: '1px 0 0 0', fontSize: '10px', color: '#333', maxWidth: '340px', lineHeight: '1.3' }}>
+              {fromBranch?.address || 'Jl. Perintis No.1, Sarijadi, Kec. Sukasari, Kota Bandung, Jawa Barat 40151'}
             </p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#555' }}>Tanggal: {dateStr}</p>
+          </div>
+
+          {/* Right Metadata Header */}
+          <div style={{ textAlign: 'left', fontSize: '11px', minWidth: '220px' }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+              <tbody>
+                <tr>
+                  <td style={{ padding: '1px 4px', color: '#333', width: '60px' }}>Perihal</td>
+                  <td style={{ padding: '1px 4px' }}>: Distribusi</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '1px 4px', color: '#333' }}>Asal</td>
+                  <td style={{ padding: '1px 4px', fontWeight: 'bold' }}>: {fromBranch?.name || companyName}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '1px 4px', color: '#333' }}>Tujuan</td>
+                  <td style={{ padding: '1px 4px', fontWeight: 'bold' }}>: {toBranch?.name || '-'}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '1px 4px', color: '#333' }}>Tanggal</td>
+                  <td style={{ padding: '1px 4px' }}>: {formatDateIndonesian(date)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* From / To */}
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-          <div style={{ flex: 1, border: '1px solid #ccc', borderRadius: '6px', padding: '12px' }}>
-            <p style={{ margin: '0 0 6px 0', fontSize: '10px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dikirim Dari (Pengirim)</p>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 'bold' }}>{fromBranch.name}</p>
-            {fromBranch.address && <p style={{ margin: '0 0 2px 0', color: '#444', fontSize: '11px' }}>{fromBranch.address}</p>}
-            {fromBranch.phone && <p style={{ margin: 0, color: '#444', fontSize: '11px' }}>Telp: {fromBranch.phone}</p>}
-          </div>
-          <div style={{ flex: 1, border: '1px solid #ccc', borderRadius: '6px', padding: '12px' }}>
-            <p style={{ margin: '0 0 6px 0', fontSize: '10px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dikirim Kepada (Penerima)</p>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: 'bold' }}>{toBranch.name}</p>
-            {toBranch.address && <p style={{ margin: '0 0 2px 0', color: '#444', fontSize: '11px' }}>{toBranch.address}</p>}
-            {toBranch.phone && <p style={{ margin: 0, color: '#444', fontSize: '11px' }}>Telp: {toBranch.phone}</p>}
-          </div>
+        {/* Title Center */}
+        <div style={{ textAlign: 'center', margin: '20px 0 15px 0' }}>
+          <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', letterSpacing: '1px' }}>SURAT JALAN</h1>
+          <p style={{ margin: '3px 0 0 0', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.5px' }}>{batchId}</p>
         </div>
 
-        {/* Items Table */}
+        {/* Table Items */}
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
           <thead>
-            <tr style={{ backgroundColor: '#f3f4f6' }}>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', width: '30px', fontSize: '11px' }}>No</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Nama Barang</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px', width: '80px' }}>ID / Kode</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px', width: '120px' }}>Serial Number</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', fontSize: '11px', width: '70px' }}>Qty</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', fontSize: '11px', width: '70px' }}>Diterima</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'center', fontSize: '11px', width: '70px' }}>Ditolak</th>
-              <th style={{ border: '1px solid #ccc', padding: '8px 10px', textAlign: 'left', fontSize: '11px', width: '120px' }}>Alasan Ditolak</th>
+            <tr style={{ backgroundColor: '#fff', borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>
+              <th style={{ border: '1px solid #333', padding: '6px 4px', textAlign: 'center', width: '30px', fontSize: '11px' }}>No</th>
+              <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'left', width: '140px', fontSize: '11px' }}>Kode Barang</th>
+              <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'left', fontSize: '11px' }}>Nama Barang</th>
+              <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'left', width: '150px', fontSize: '11px' }}>Keterangan</th>
+              <th style={{ border: '1px solid #333', padding: '6px 8px', textAlign: 'right', width: '90px', fontSize: '11px' }}>Harga Jual</th>
+              <th style={{ border: '1px solid #333', padding: '6px 4px', textAlign: 'center', width: '35px', fontSize: '11px' }}>Qty</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item, idx) => (
-              <tr key={item.id} style={{ backgroundColor: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '11px' }}>{idx + 1}</td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '11px' }}>
-                  <strong>{item.productItem?.product?.brand} {item.productItem?.product?.name}</strong>
-                  {item.productItem?.product?.model && <span style={{ color: '#666', display: 'block', fontSize: '10px' }}>{item.productItem?.product?.model}</span>}
-                </td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '10px', fontFamily: 'monospace' }}>{item.productItem?.product?.sku || item.productItem?.product?.id}</td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '10px', fontFamily: 'monospace' }}>{item.productItem?.sn || '-'}</td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '11px' }}>{item.qty}</td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '16px' }}>
-                  {item.status === 'Received' ? '✓' : '☐'}
-                </td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', textAlign: 'center', fontSize: '16px' }}>
-                  {item.status === 'Returned' ? '✓' : '☐'}
-                </td>
-                <td style={{ border: '1px solid #ccc', padding: '7px 10px', fontSize: '10px', color: '#c00' }}>
-                  {item.status === 'Returned' ? (item.notes || 'Ditolak') : ''}
-                </td>
-              </tr>
-            ))}
+            {items.map((item, idx) => {
+              const prod = item.productItem?.product || item.product || {};
+              const kodeBarang = prod.sku || item.productItem?.sn || prod.id || '-';
+              const namaBarang = `${prod.brand ? prod.brand + ' ' : ''}${prod.name || 'Laptop'} ${prod.model ? prod.model + ' ' : ''}${item.productItem?.sn ? item.productItem.sn + ' ' : ''}`.trim();
+              const priceVal = prod.sellPrice || prod.price || 0;
+              const hargaFormatted = priceVal > 0 ? new Intl.NumberFormat('id-ID').format(priceVal) : '0';
+
+              return (
+                <tr key={item.id || idx}>
+                  <td style={{ border: '1px solid #333', padding: '5px 4px', textAlign: 'center', fontSize: '10px' }}>{idx + 1}</td>
+                  <td style={{ border: '1px solid #333', padding: '5px 8px', fontSize: '10px', fontFamily: 'monospace' }}>
+                    {kodeBarang} <span style={{ marginLeft: '4px', fontWeight: 'bold' }}>✓</span>
+                  </td>
+                  <td style={{ border: '1px solid #333', padding: '5px 8px', fontSize: '10px' }}>
+                    {namaBarang}
+                  </td>
+                  <td style={{ border: '1px solid #333', padding: '5px 8px', fontSize: '10px' }}>
+                    {item.notes || '+ Charger ✓'}
+                  </td>
+                  <td style={{ border: '1px solid #333', padding: '5px 8px', textAlign: 'right', fontSize: '10px' }}>
+                    {hargaFormatted}
+                  </td>
+                  <td style={{ border: '1px solid #333', padding: '5px 4px', textAlign: 'center', fontSize: '10px' }}>
+                    {item.qty || 1}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={5} style={{ border: '1px solid #ccc', padding: '8px 10px', fontWeight: 'bold', textAlign: 'right', fontSize: '11px' }}>
-                Total: {items.length} Unit
-              </td>
-              <td colSpan={3} style={{ border: '1px solid #ccc' }}></td>
-            </tr>
-          </tfoot>
         </table>
 
-        {/* Notes */}
+        {/* Notes if any */}
         {notes && (
-          <div style={{ marginBottom: '20px', padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '6px', backgroundColor: '#fffbeb' }}>
-            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '11px', color: '#92400e', marginBottom: '4px' }}>Catatan:</p>
-            <p style={{ margin: 0, fontSize: '11px', color: '#333' }}>{notes}</p>
+          <div style={{ marginBottom: '15px', padding: '6px 10px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '10px' }}>
+            <strong>Catatan Tambahan:</strong> {notes}
           </div>
         )}
 
-        {/* Summary Counts */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
-          <div style={{ flex: 1, padding: '10px', border: '1px solid #d1fae5', borderRadius: '6px', backgroundColor: '#ecfdf5', textAlign: 'center' }}>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#059669' }}>
-              {items.filter(i => i.status === 'Received').length}
+        {/* Bottom Signatures (3 Columns matching photo) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px', padding: '0 10px' }}>
+          <div style={{ textAlign: 'center', width: '30%' }}>
+            <p style={{ margin: '0 0 55px 0', fontWeight: 'bold', fontSize: '11px' }}>Mengetahui,</p>
+            <div style={{ borderTop: '1px solid #000', paddingTop: '4px' }}>
+              <p style={{ margin: 0, fontSize: '10px' }}>Ttd & Nama Jelas Tim Gudang</p>
             </div>
-            <div style={{ fontSize: '10px', color: '#6b7280' }}>Unit Diterima</div>
           </div>
-          <div style={{ flex: 1, padding: '10px', border: '1px solid #fee2e2', borderRadius: '6px', backgroundColor: '#fef2f2', textAlign: 'center' }}>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#dc2626' }}>
-              {items.filter(i => i.status === 'Returned').length}
-            </div>
-            <div style={{ fontSize: '10px', color: '#6b7280' }}>Unit Diretur</div>
-          </div>
-          <div style={{ flex: 1, padding: '10px', border: '1px solid #dbeafe', borderRadius: '6px', backgroundColor: '#eff6ff', textAlign: 'center' }}>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2563eb' }}>
-              {items.filter(i => i.status === 'Shipped').length}
-            </div>
-            <div style={{ fontSize: '10px', color: '#6b7280' }}>Pending</div>
-          </div>
-        </div>
 
-        {/* Signature Area */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '40px', marginTop: '10px' }}>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', fontSize: '11px' }}>Pengirim</p>
-            <p style={{ margin: '0 0 60px 0', fontSize: '10px', color: '#666' }}>{senderName}</p>
-            <div style={{ borderTop: '1px solid #000', paddingTop: '6px' }}>
-              <p style={{ margin: 0, fontSize: '10px' }}>Nama & Tanda Tangan</p>
+          <div style={{ textAlign: 'center', width: '30%' }}>
+            <p style={{ margin: '0 0 55px 0', fontWeight: 'bold', fontSize: '11px' }}>Diserahkan Oleh,</p>
+            <div style={{ borderTop: '1px solid #000', paddingTop: '4px' }}>
+              <p style={{ margin: 0, fontSize: '10px' }}>Ttd & Nama Jelas Tim Distribusi</p>
             </div>
           </div>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', fontSize: '11px' }}>Penerima</p>
-            <p style={{ margin: '0 0 60px 0', fontSize: '10px', color: '#666' }}>{toBranch.name}</p>
-            <div style={{ borderTop: '1px solid #000', paddingTop: '6px' }}>
-              <p style={{ margin: 0, fontSize: '10px' }}>Nama & Tanda Tangan</p>
-            </div>
-          </div>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <p style={{ margin: '0 0 4px 0', fontWeight: 'bold', fontSize: '11px' }}>Mengetahui</p>
-            <p style={{ margin: '0 0 60px 0', fontSize: '10px', color: '#666' }}>Manager / Supervisor</p>
-            <div style={{ borderTop: '1px solid #000', paddingTop: '6px' }}>
-              <p style={{ margin: 0, fontSize: '10px' }}>Nama & Tanda Tangan</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Footer */}
-        <div style={{ marginTop: '30px', borderTop: '1px solid #e5e7eb', paddingTop: '10px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: '10px', color: '#9ca3af' }}>
-            Dokumen ini dicetak secara otomatis oleh sistem {companyName} — {batchId} — {dateStr}
-          </p>
+          <div style={{ textAlign: 'center', width: '30%' }}>
+            <p style={{ margin: '0 0 55px 0', fontWeight: 'bold', fontSize: '11px' }}>Diterima Oleh,</p>
+            <div style={{ borderTop: '1px solid #000', paddingTop: '4px' }}>
+              <p style={{ margin: 0, fontSize: '10px' }}>Ttd & Nama Jelas Tim Outlet</p>
+            </div>
+          </div>
         </div>
       </div>
     );
