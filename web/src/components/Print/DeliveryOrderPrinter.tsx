@@ -135,7 +135,7 @@ const DeliveryOrderPrinter = forwardRef<HTMLDivElement, DeliveryOrderPrinterProp
           </thead>
           <tbody>
             {items.map((item, idx) => {
-              const prod = item.productItem?.product || item.product || {};
+              const prod: any = item.productItem?.product || item.product || {};
               const kodeBarang = prod.sku || item.productItem?.sn || prod.id || '-';
               const namaBarang = `${prod.brand ? prod.brand + ' ' : ''}${prod.name || 'Laptop'} ${prod.model ? prod.model + ' ' : ''}${item.productItem?.sn ? item.productItem.sn + ' ' : ''}`.trim();
               const priceVal = prod.sellPrice || prod.price || 0;
