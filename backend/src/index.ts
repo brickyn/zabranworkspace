@@ -67,7 +67,7 @@ const ALLOWED_ORIGIN = '*';
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                   // max 10 login attempts per window
+  max: 100,                  // max 100 login attempts per window
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Too many login attempts. Please try again after 15 minutes.' }
