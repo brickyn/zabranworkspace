@@ -414,29 +414,30 @@ export default function POSPage() {
 
   return (
     <>
-      <div className="h-[calc(100vh-10rem)] min-h-[600px] bg-slate-50 flex flex-col lg:flex-row gap-4">
+      <div className="absolute inset-0 flex flex-col lg:flex-row bg-slate-50 overflow-hidden">
         
         {/* Left Panel: Catalog */}
         <div className="flex-[3] flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden backdrop-blur-sm">
           
-          <div className="p-4 border-b border-slate-200 bg-white flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h2 className="text-xl font-semibold text-slate-800">Product Catalog</h2>
+          <div className="pt-6 px-6 pb-2 shrink-0 flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Catalog</h2>
+            </div>
             
-            {/* Scanner Input inside Catalog header */}
-            <form onSubmit={handleSearch} className="relative w-full max-w-md">
+            <form onSubmit={handleSearch} className="relative w-full max-w-xl">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <ScanBarcode className="h-5 w-5 text-slate-500" />
+                <Search className="h-5 w-5 text-slate-400" />
               </div>
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 disabled={isSearching}
-                placeholder="Scan / Ketik ID Produk (Kode-YYMMDD-XXX) / SN..."
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-mono shadow-inner disabled:opacity-50 text-sm"
+                placeholder="Scan Barcode or Search SKU..."
+                className="w-full pl-11 pr-14 py-3.5 bg-white border border-slate-200 rounded-full text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all font-medium shadow-sm disabled:opacity-50 text-sm"
               />
-              <button disabled={isSearching} type="submit" className="absolute inset-y-1.5 right-1.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 text-sm">
-                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
+              <button disabled={isSearching} type="submit" className="absolute inset-y-1.5 right-1.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-medium transition-colors disabled:opacity-50 text-sm shadow-sm flex items-center justify-center">
+                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enter'}
               </button>
             </form>
           </div>
@@ -444,15 +445,15 @@ export default function POSPage() {
           {searchError && <div className="px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-400 text-sm">{searchError}</div>}
 
           {/* Categories */}
-          <div className="px-6 py-4 border-b border-slate-200 flex gap-2 overflow-x-auto no-scrollbar">
+          <div className="px-6 py-2 shrink-0 flex gap-2 overflow-x-auto no-scrollbar mask-fade-edges">
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border ${
                   selectedCategory === cat 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20' 
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                 }`}
               >
                 {cat}
@@ -461,7 +462,7 @@ export default function POSPage() {
           </div>
 
           {/* Product Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             {isLoadingProducts ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
@@ -472,7 +473,7 @@ export default function POSPage() {
                 <p>No products available</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredProducts.map(product => {
                   const inCart = items.some(i => i.id === product.id);
                   return (
@@ -480,25 +481,25 @@ export default function POSPage() {
                       key={product.id}
                       onClick={() => handleAddProduct(product)}
                       className={`relative bg-white border border-slate-200 rounded-xl p-3 transition-all cursor-pointer group ${
-                        inCart ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' : 'hover:bg-nav-hover hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10'
+                        inCart ? 'border-indigo-500 shadow-md shadow-indigo-500/10 ring-1 ring-indigo-500' : 'border-slate-100 hover:border-indigo-300 hover:shadow-md'
                       }`}
                     >
                       {inCart && (
-                        <div className="absolute top-2 right-12 bg-blue-500 text-slate-800 text-[10px] font-bold px-2 py-1 rounded-md z-10">
+                        <div className="absolute top-2 right-12 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-md z-10">
                           x{items.find(i => i.id === product.id)?.quantity || 1}
                         </div>
                       )}
                       {product.promoPrice && (
-                        <div className="absolute top-2 right-2 bg-red-500 text-slate-800 text-[10px] font-bold px-2 py-1 rounded-md z-0">
+                        <div className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded-md z-0">
                           PROMO
                         </div>
                       )}
-                      <div className="w-full aspect-[16/9] bg-slate-50 rounded-lg mb-2 flex items-center justify-center text-gray-500">
+                      <div className="w-full aspect-[4/3] bg-slate-50/50 rounded-xl mb-3 border border-slate-100 flex items-center justify-center text-gray-500">
                         {/* Placeholder image */}
                         <ShoppingCart className="w-6 h-6 opacity-20" />
                       </div>
                       <div className="text-xs text-blue-400 font-mono mb-1">{product.sku || product.id}</div>
-                      <h3 className="text-slate-800 font-medium text-[13px] line-clamp-2 mb-1 leading-snug break-words" title={product.name}>
+                      <h3 className="text-slate-800 font-semibold text-[13px] line-clamp-2 mb-2 leading-snug break-words" title={product.name}>
                         {product.brand} {product.name}
                       </h3>
                       <div className="mt-auto">
@@ -508,7 +509,7 @@ export default function POSPage() {
                             <div className="text-green-400 font-bold">{formatRupiah(product.promoPrice)}</div>
                           </>
                         ) : (
-                          <div className="text-blue-400 font-bold">{formatRupiah(product.sellPrice)}</div>
+                          <div className="text-indigo-600 font-bold text-sm">{formatRupiah(product.sellPrice)}</div>
                         )}
                       </div>
                     </div>
@@ -520,7 +521,7 @@ export default function POSPage() {
         </div>
 
         {/* Right Panel: Cart & Checkout Summary */}
-        <div className="w-full lg:w-[400px] xl:w-[450px] shrink-0 flex flex-col gap-4 overflow-y-auto pb-6 pr-2 custom-scrollbar relative">
+        <div className="w-full lg:w-[400px] shrink-0 flex flex-col h-full bg-white border-l border-slate-200 shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] relative z-10">
           {/* SESSION LOCK OVERLAY */}
           {!isSessionLoading && !session && (
             <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center border border-slate-200">
@@ -541,24 +542,25 @@ export default function POSPage() {
             </div>
           )}
           
+          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-0">
           {/* Cart Items List */}
-          <div className="flex-1 min-h-[300px] flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden backdrop-blur-sm shrink-0">
-            <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
+          <div className="flex flex-col shrink-0">
+            <div className="p-5 border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-20 flex justify-between items-center">
               <h2 className="text-lg font-semibold text-slate-800 flex items-center">
                 <ShoppingCart className="w-5 h-5 mr-2" /> Current Order
               </h2>
               {items.length > 0 && (
-                <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-lg">{items.length} items</span>
+                <span className="bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-full">{items.length}</span>
               )}
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="p-4 space-y-3">
               {items.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-500">
                   <p>Cart is empty</p>
                 </div>
               ) : (
                 items.map((item, index) => (
-                  <div key={item.id} className="flex flex-col p-2.5 bg-slate-50 border border-slate-200 rounded-xl group relative">
+                  <div key={item.id} className="flex flex-col p-3 bg-white border border-slate-100 shadow-sm rounded-xl group relative hover:border-indigo-100 transition-colors">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1 pr-8">
                         <h3 className="font-medium text-slate-800 text-sm line-clamp-2">{item.name}</h3>
@@ -617,8 +619,8 @@ export default function POSPage() {
           </div>
           
           {/* Customer Info */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm">
-            <h3 className="text-slate-800 text-sm font-medium mb-3 flex items-center"><User className="w-4 h-4 mr-2 text-blue-400"/> Customer Details</h3>
+          <div className="p-5 border-t border-slate-100 shrink-0">
+            <h3 className="text-slate-800 text-sm font-semibold mb-3 flex items-center"><User className="w-4 h-4 mr-2 text-indigo-500"/> Customer Details</h3>
             <div className="space-y-2">
               <input
                 type="text"
@@ -668,9 +670,9 @@ export default function POSPage() {
           </div>
 
           {/* Payment Method */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm shrink-0">
+          <div className="p-5 border-t border-slate-100 shrink-0">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-slate-800 text-sm font-medium">Payment Method</h3>
+              <h3 className="text-slate-800 text-sm font-semibold">Payment Method</h3>
               <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
                 <input type="checkbox" checked={isSplitBill} onChange={e => setIsSplitBill(e.target.checked)} className="rounded bg-white border-gray-600 text-blue-500 focus:ring-blue-500" />
                 Split Bill
@@ -694,7 +696,7 @@ export default function POSPage() {
                       onClick={() => setPaymentMethod(method.id)}
                       className={`flex flex-col items-center justify-center py-2 rounded-xl border transition-all ${
                         isSelected 
-                          ? 'bg-blue-600/20 border-blue-500 text-blue-400' 
+                          ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-inner' 
                           : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                       }`}
                     >
@@ -740,8 +742,8 @@ export default function POSPage() {
           </div>
 
           {/* Voucher Code */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm shrink-0">
-            <h3 className="text-slate-800 text-sm font-medium mb-3 flex items-center"><Tag className="w-4 h-4 mr-2 text-pink-400"/> Promo & Voucher</h3>
+          <div className="p-5 border-t border-slate-100 shrink-0">
+            <h3 className="text-slate-800 text-sm font-semibold mb-3 flex items-center"><Tag className="w-4 h-4 mr-2 text-indigo-500"/> Promo & Voucher</h3>
             <div className="flex flex-col gap-3">
               <select
                 value={promoCode || ''}
@@ -791,7 +793,7 @@ export default function POSPage() {
 
           {/* Cash Change Calculator — only for Cash payment */}
           {!isSplitBill && paymentMethod === 'Cash' && (
-            <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm shrink-0">
+            <div className="p-5 border-t border-slate-100 shrink-0">
               <h3 className="text-slate-800 text-sm font-medium mb-3 flex items-center"><Banknote className="w-4 h-4 mr-2 text-green-400"/> Pembayaran Tunai</h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -820,8 +822,10 @@ export default function POSPage() {
             </div>
           )}
 
-          {/* Summary & Checkout */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm">
+          </div> {/* End of Scrollable Cart Content */}
+          
+          {/* Pinned Summary & Checkout */}
+          <div className="p-5 border-t border-slate-200 shrink-0 bg-white">
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-slate-500 text-xs">
                 <span>Subtotal ({items.length} items)</span>
@@ -900,7 +904,7 @@ export default function POSPage() {
               </button>
               <button 
                 onClick={handleNewTransaction}
-                className="flex-[2] py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors"
+                className="flex-[2] py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/30 active:scale-[0.98]"
               >
                 Transaksi Baru
               </button>
