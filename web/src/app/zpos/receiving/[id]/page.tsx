@@ -30,7 +30,8 @@ export default function ZPOSReceivingDetail() {
         // Initialize state for items
         const initItems = res.data.data.items.map((it: any) => ({
           stockTransferId: it.id,
-          product: it.product,
+          product: it.productItem?.product || it.product || {},
+          sn: it.productItem?.sn || it.sn || '-',
           status: it.status,
           receivedStatus: 'Received', // default assumption
           discrepancyNotes: ''
@@ -130,7 +131,7 @@ export default function ZPOSReceivingDetail() {
                       <div className="text-xs text-gray-500">SKU: {item.product.sku}</div>
                     </td>
                     <td className="px-4 py-4 font-mono text-xs text-gray-600">
-                      -
+                      {item.sn}
                     </td>
                     <td className="px-4 py-4">
                       <select 
