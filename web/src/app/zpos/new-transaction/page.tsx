@@ -472,7 +472,7 @@ export default function POSPage() {
                 <p>No products available</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
                 {filteredProducts.map(product => {
                   const inCart = items.some(i => i.id === product.id);
                   return (
@@ -498,7 +498,7 @@ export default function POSPage() {
                         <ShoppingCart className="w-8 h-8 opacity-20" />
                       </div>
                       <div className="text-xs text-blue-400 font-mono mb-1">{product.sku || product.id}</div>
-                      <h3 className="text-slate-800 font-medium text-sm line-clamp-2 mb-1 leading-snug" title={product.name}>
+                      <h3 className="text-slate-800 font-medium text-sm line-clamp-2 mb-1 leading-snug break-words" title={product.name}>
                         {product.brand} {product.name}
                       </h3>
                       <div className="mt-auto">
@@ -520,7 +520,7 @@ export default function POSPage() {
         </div>
 
         {/* Right Panel: Cart & Checkout Summary */}
-        <div className="flex-[2] flex flex-col gap-6 overflow-y-auto pb-6 pr-2 custom-scrollbar relative">
+        <div className="flex-[2] min-w-0 flex flex-col gap-6 overflow-y-auto pb-6 pr-2 custom-scrollbar relative">
           {/* SESSION LOCK OVERLAY */}
           {!isSessionLoading && !session && (
             <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center border border-slate-200">
