@@ -103,7 +103,7 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light">
-      <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden selection:bg-indigo-100">
+      <div className="flex h-screen w-full bg-[#f8fafc] text-slate-900 font-sans overflow-hidden selection:bg-indigo-100">
         
         {/* Mobile Sidebar Overlay */}
         {isMobileSidebarOpen && (
@@ -114,16 +114,16 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
         )}
 
         {/* Sidebar */}
-        <aside className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto flex flex-col shrink-0 ${
+        <aside className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-white border-r border-slate-100/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto flex flex-col shrink-0 ${
           isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           {/* Brand */}
-          <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 shrink-0">
+          <div className="h-[72px] flex items-center justify-between px-6 border-b border-slate-100/50 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-600/20">
                 <span className="text-white font-bold text-lg">Z</span>
               </div>
-              <span className="font-bold text-lg tracking-tight text-slate-800">ZPOS</span>
+              <span className="font-extrabold text-xl tracking-tight text-slate-900">ZPOS</span>
             </div>
             <button onClick={() => setMobileSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-md">
               <X className="w-5 h-5" />
@@ -131,8 +131,8 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto py-5 px-3 space-y-1 custom-scrollbar">
-            <div className="px-3 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
+            <div className="px-3 mb-4 text-[11px] font-semibold text-slate-400 uppercase tracking-[0.15em]">
               Store Operations
             </div>
             {filteredMenu.map((item) => {
@@ -142,10 +142,10 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
                   key={item.path}
                   href={item.path}
                   onClick={() => setMobileSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-[14px] transition-all duration-200 ease-in-out ${
                     isActive 
-                      ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-500/5' 
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                      ? 'bg-indigo-50/50 text-indigo-700 font-semibold shadow-sm ring-1 ring-indigo-500/10' 
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
                   }`}
                 >
                   <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
@@ -156,8 +156,8 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
           </div>
 
           {/* User Profile Footer */}
-          <div className="p-4 border-t border-slate-100 bg-white shrink-0">
-            <div className="flex items-center gap-3 mb-4 px-2">
+          <div className="p-5 border-t border-slate-100/50 bg-white shrink-0">
+            <div className="flex items-center gap-3 mb-5 px-1">
               <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
                 <User className="w-5 h-5" />
               </div>
@@ -170,7 +170,7 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
             {session ? (
               <button
                 onClick={() => setShowCloseSession(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-2 text-sm font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 hover:border-rose-300 rounded-xl transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-2 text-sm font-medium text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 hover:border-rose-200 rounded-xl transition-all duration-200"
               >
                 <Wallet className="w-4 h-4 shrink-0" />
                 <span>Tutup Shift (EOD)</span>
@@ -178,7 +178,7 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
             ) : (
               <button
                 onClick={() => setShowOpenSession(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-xl transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 mb-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 hover:shadow-sm rounded-xl transition-all duration-200"
               >
                 <Wallet className="w-4 h-4 shrink-0" />
                 <span>Buka Shift Kasir</span>
@@ -187,7 +187,7 @@ export default function ZPOSLayout({ children }: { children: React.ReactNode }) 
 
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl transition-all duration-200"
             >
               <LogOut className="w-4 h-4 shrink-0" />
               <span>Logout</span>
