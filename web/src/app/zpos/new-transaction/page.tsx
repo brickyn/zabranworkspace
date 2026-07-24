@@ -414,12 +414,12 @@ export default function POSPage() {
 
   return (
     <>
-      <div className="h-full bg-slate-50 flex flex-col lg:flex-row gap-6">
+      <div className="h-[calc(100vh-10rem)] min-h-[600px] bg-slate-50 flex flex-col lg:flex-row gap-4">
         
         {/* Left Panel: Catalog */}
         <div className="flex-[3] flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden backdrop-blur-sm">
           
-          <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center gap-4">
+          <div className="p-4 border-b border-slate-200 bg-white flex flex-col sm:flex-row justify-between items-center gap-4">
             <h2 className="text-xl font-semibold text-slate-800">Product Catalog</h2>
             
             {/* Scanner Input inside Catalog header */}
@@ -461,7 +461,7 @@ export default function POSPage() {
           </div>
 
           {/* Product Grid */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4">
             {isLoadingProducts ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
@@ -472,14 +472,14 @@ export default function POSPage() {
                 <p>No products available</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3">
                 {filteredProducts.map(product => {
                   const inCart = items.some(i => i.id === product.id);
                   return (
                     <div 
                       key={product.id}
                       onClick={() => handleAddProduct(product)}
-                      className={`relative bg-white border border-slate-200 rounded-2xl p-4 transition-all cursor-pointer group ${
+                      className={`relative bg-white border border-slate-200 rounded-xl p-3 transition-all cursor-pointer group ${
                         inCart ? 'border-blue-500/50 shadow-lg shadow-blue-500/10' : 'hover:bg-nav-hover hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10'
                       }`}
                     >
@@ -493,12 +493,12 @@ export default function POSPage() {
                           PROMO
                         </div>
                       )}
-                      <div className="w-full aspect-video bg-slate-50 rounded-xl mb-4 flex items-center justify-center text-gray-500">
+                      <div className="w-full aspect-[16/9] bg-slate-50 rounded-lg mb-2 flex items-center justify-center text-gray-500">
                         {/* Placeholder image */}
-                        <ShoppingCart className="w-8 h-8 opacity-20" />
+                        <ShoppingCart className="w-6 h-6 opacity-20" />
                       </div>
                       <div className="text-xs text-blue-400 font-mono mb-1">{product.sku || product.id}</div>
-                      <h3 className="text-slate-800 font-medium text-sm line-clamp-2 mb-1 leading-snug break-words" title={product.name}>
+                      <h3 className="text-slate-800 font-medium text-[13px] line-clamp-2 mb-1 leading-snug break-words" title={product.name}>
                         {product.brand} {product.name}
                       </h3>
                       <div className="mt-auto">
@@ -520,7 +520,7 @@ export default function POSPage() {
         </div>
 
         {/* Right Panel: Cart & Checkout Summary */}
-        <div className="flex-[2] min-w-0 flex flex-col gap-6 overflow-y-auto pb-6 pr-2 custom-scrollbar relative">
+        <div className="w-full lg:w-[400px] xl:w-[450px] shrink-0 flex flex-col gap-4 overflow-y-auto pb-6 pr-2 custom-scrollbar relative">
           {/* SESSION LOCK OVERLAY */}
           {!isSessionLoading && !session && (
             <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center border border-slate-200">
@@ -558,7 +558,7 @@ export default function POSPage() {
                 </div>
               ) : (
                 items.map((item, index) => (
-                  <div key={item.id} className="flex flex-col p-3 bg-slate-50 border border-slate-200 rounded-xl group relative">
+                  <div key={item.id} className="flex flex-col p-2.5 bg-slate-50 border border-slate-200 rounded-xl group relative">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1 pr-8">
                         <h3 className="font-medium text-slate-800 text-sm line-clamp-2">{item.name}</h3>
@@ -617,7 +617,7 @@ export default function POSPage() {
           </div>
           
           {/* Customer Info */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 backdrop-blur-sm">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm">
             <h3 className="text-slate-800 text-sm font-medium mb-3 flex items-center"><User className="w-4 h-4 mr-2 text-blue-400"/> Customer Details</h3>
             <div className="space-y-2">
               <input
@@ -625,7 +625,7 @@ export default function POSPage() {
                 placeholder="Customer Name *"
                 value={customerName}
                 onChange={(e) => setCustomerInfo(e.target.value, customerPhone)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
               />
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -668,7 +668,7 @@ export default function POSPage() {
           </div>
 
           {/* Payment Method */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 backdrop-blur-sm shrink-0">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm shrink-0">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-slate-800 text-sm font-medium">Payment Method</h3>
               <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
@@ -740,7 +740,7 @@ export default function POSPage() {
           </div>
 
           {/* Voucher Code */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 backdrop-blur-sm shrink-0">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm shrink-0">
             <h3 className="text-slate-800 text-sm font-medium mb-3 flex items-center"><Tag className="w-4 h-4 mr-2 text-pink-400"/> Promo & Voucher</h3>
             <div className="flex flex-col gap-3">
               <select
@@ -763,7 +763,7 @@ export default function POSPage() {
                     setDiscountTotal(0);
                   }
                 }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-blue-500 text-sm"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 text-sm"
               >
                 <option value="">-- Pilih Campaign Promo --</option>
                 {promos.map(p => (
@@ -778,7 +778,7 @@ export default function POSPage() {
                 placeholder="Catatan Khusus (Optional)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
               />
             </div>
             
@@ -791,7 +791,7 @@ export default function POSPage() {
 
           {/* Cash Change Calculator — only for Cash payment */}
           {!isSplitBill && paymentMethod === 'Cash' && (
-            <div className="bg-white border border-slate-200 rounded-3xl p-5 backdrop-blur-sm shrink-0">
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm shrink-0">
               <h3 className="text-slate-800 text-sm font-medium mb-3 flex items-center"><Banknote className="w-4 h-4 mr-2 text-green-400"/> Pembayaran Tunai</h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -821,7 +821,7 @@ export default function POSPage() {
           )}
 
           {/* Summary & Checkout */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 backdrop-blur-sm">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 bg-white shadow-sm">
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-slate-500 text-xs">
                 <span>Subtotal ({items.length} items)</span>
