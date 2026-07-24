@@ -168,16 +168,30 @@ export default function StockTransferPage() {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+      
+      // Parse as array of arrays to handle files with missing or unknown headers
+      const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      if (jsonData.length === 0) throw new Error('File Excel kosong');
-
-      const identifiers = jsonData.map(row => String(
-        row['SERIAL_NUMBER'] || row['Serial_Number'] || row['Serial Number'] || row['serialNumber'] ||
-        row['SN'] || row['sn'] || 
-        row['SKU'] || row['sku'] || 
-        row['ID Produk'] || row['Kode Barang'] || row['Kode'] || row['ID'] || row['id'] || ''
-      ).trim()).filter(Boolean);
+      const identifiers: string[] = [];
+      for (const row of rawRows) {
+        if (!row || !Array.isArray(row) || row.length === 0) continue;
+        
+        // Scan the first few cells of the row for a valid SN
+        for (const cell of row) {
+          if (cell !== null && cell !== undefined && String(cell).trim() !== '') {
+            const val = String(cell).trim();
+            const lower = val.toLowerCase();
+            
+            // Skip obvious header rows
+            if (['sn', 'serial number', 'sku', 'id', 'kode barang', 'id produk', 'batch code', 'serial_number'].includes(lower) || lower.includes('scan barcode')) {
+              continue; // Skip this cell if it's a header
+            }
+            
+            identifiers.push(val);
+            break; // Found the identifier for this row, move to next row
+          }
+        }
+      }
 
       if (identifiers.length === 0) throw new Error('Tidak ada Serial Number (SN) atau SKU yang ditemukan di file Excel');
 

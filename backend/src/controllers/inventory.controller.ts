@@ -110,16 +110,18 @@ export const getStockSummary = async (req: AuthRequest, res: Response) => {
 
     statusCounts.forEach(item => {
       const count = item._count.id;
-      if (['Available', 'Reserved', 'Damaged', 'Service', 'QC_Pending'].includes(item.status)) {
+      const statusUpper = item.status.toUpperCase();
+      
+      if (['AVAILABLE', 'RESERVED', 'DAMAGED', 'SERVICE', 'QC_PENDING'].includes(statusUpper)) {
         warehouseStock += count;
       }
       
-      if (item.status === 'Reserved') reservedStock += count;
-      if (item.status === 'In Transit') {
+      if (statusUpper === 'RESERVED') reservedStock += count;
+      if (statusUpper === 'IN_TRANSIT' || statusUpper === 'IN TRANSIT') {
         inTransit += count;
         warehouseStock += count; 
       }
-      if (item.status === 'Available') availableStock += count;
+      if (statusUpper === 'AVAILABLE') availableStock += count;
     });
 
     // Enforce formula: Available = Warehouse Stock - Reserved Stock - In Transit
@@ -565,9 +567,9 @@ export const updateTransferStatus = async (req: AuthRequest, res: Response) => {
       
       // Decrease warehouse stock (Set to In Transit)
       operations.push(
-        prisma.product.updateMany({
-          where: { id: { in: transfer.items.map((i: any) => i.productId) } },
-          data: { status: 'In Transit' }
+        prisma.productItem.updateMany({
+          where: { id: { in: transfer.items.map((i: any) => i.productItemId) } },
+          data: { status: 'IN_TRANSIT' }
         })
       );
       operations.push(prisma.transferOrder.update({ where: { id }, data: { status, doNumber, dispatchDate: new Date() } }));
