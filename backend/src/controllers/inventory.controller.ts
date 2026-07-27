@@ -47,7 +47,15 @@ export const getStock = async (req: Request, res: Response) => {
       status: { in: ['AVAILABLE', 'Available'] },
       product: { deletedAt: null }
     };
-    if (targetBranch && targetBranch !== 'all') whereClause.branchId = targetBranch;
+    if (targetBranch && targetBranch !== 'all') {
+      if (targetBranch === 'warehouse_only') {
+        whereClause.branch = { isWarehouse: true };
+      } else if (targetBranch === 'store_only') {
+        whereClause.branch = { isWarehouse: false };
+      } else {
+        whereClause.branchId = targetBranch;
+      }
+    }
     if (product_id) whereClause.productId = product_id as string;
     if (category && category !== 'all') {
       whereClause.product = {
@@ -91,7 +99,13 @@ export const getStockSummary = async (req: AuthRequest, res: Response) => {
 
     const whereClause: any = {};
     if (branchId && branchId !== 'all') {
-      whereClause.branchId = branchId;
+      if (branchId === 'warehouse_only') {
+        whereClause.branch = { isWarehouse: true };
+      } else if (branchId === 'store_only') {
+        whereClause.branch = { isWarehouse: false };
+      } else {
+        whereClause.branchId = branchId;
+      }
     }
 
     // Group by status

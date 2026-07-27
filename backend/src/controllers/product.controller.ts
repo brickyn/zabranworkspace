@@ -18,11 +18,20 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
     };
     
     // In Master-Detail architecture, Product is universal master data.
-    // We remove branchId filters from the main product where clause because branchId is on ProductItem.
-    // But we filter the included items so totalStock reflects the selected branch.
     const itemsWhere: any = { status: { in: ['AVAILABLE', 'Available', 'IN_TRANSIT', 'Reserved', 'QC_Pending'] } };
     if (branchId && branchId !== 'all') {
-      itemsWhere.branchId = String(branchId);
+      if (branchId === 'warehouse_only') {
+        itemsWhere.branch = { isWarehouse: true };
+      } else if (branchId === 'store_only') {
+        itemsWhere.branch = { isWarehouse: false };
+      } else {
+        itemsWhere.branchId = String(branchId);
+      }
+      
+      // Strictly filter products to only those that have items matching the branch filter
+      whereClause.items = {
+        some: itemsWhere
+      };
     }
 
     const categories = await prisma.category.findMany();

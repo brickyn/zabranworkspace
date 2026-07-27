@@ -482,6 +482,8 @@ export default function ProductsPage() {
                 className="bg-glass-bg/80 border border-glass-border rounded-xl px-4 py-2.5 text-foreground focus:outline-none focus:border-blue-500 text-sm transition-colors"
               >
                 <option value="all">Semua Cabang</option>
+                <option value="warehouse_only">Semua Gudang (Warehouse)</option>
+                <option value="store_only">Semua Toko (Store)</option>
                 {branches.map(b => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -809,6 +811,7 @@ export default function ProductsPage() {
                 <thead className="bg-white/5 text-xs uppercase text-gray-500 sticky top-0 backdrop-blur-md">
                   <tr>
                     <th className="px-6 py-4 font-medium">Serial Number / Barcode</th>
+                    <th className="px-6 py-4 font-medium">Lokasi</th>
                     <th className="px-6 py-4 font-medium text-center">Qty</th>
                     <th className="px-6 py-4 font-medium">Status</th>
                   </tr>
@@ -818,6 +821,7 @@ export default function ProductsPage() {
                     selectedStockProduct.items.map((item: any) => (
                       <tr key={item.id} className="hover:bg-white/5 transition-colors">
                         <td className="px-6 py-3 font-mono text-xs">{item.sn}</td>
+                        <td className="px-6 py-3 text-xs text-gray-400">{item.branch?.name || '-'}</td>
                         <td className="px-6 py-3 text-center font-bold text-blue-400">{item.qty || 1}</td>
                         <td className="px-6 py-3">
                           <span className="px-2 py-1 text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 rounded-md uppercase">
