@@ -35,13 +35,18 @@ export default function LoginPage() {
 
       if (res.data.success) {
         const { token, user } = res.data.data;
+        // Normalize: API returns branch_id (snake_case), app reads branchId (camelCase)
+        const normalizedUser = {
+          ...user,
+          branchId: user.branchId || user.branch_id || null,
+        };
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        if (user.role === 'Cashier') {
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
+        if (normalizedUser.role === 'Cashier') {
           router.push('/zpos/new-transaction');
-        } else if (user.role === 'Leader') {
+        } else if (normalizedUser.role === 'Leader') {
           router.push('/zpos/dashboard');
-        } else if (user.role === 'Warehouse') {
+        } else if (normalizedUser.role === 'Warehouse') {
           router.push('/products');
         } else {
           // Master Hub redirect for ERP roles

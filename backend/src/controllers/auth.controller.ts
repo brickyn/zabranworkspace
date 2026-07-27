@@ -166,7 +166,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           jobTitle: user.jobTitle,
           division: user.division,
           permissions: compiledPermissions,
-          branch_id: user.branchId,
+          branchId: user.branchId,       // camelCase — used by frontend
+          branch_id: user.branchId,      // snake_case — kept for backward compat
           branch_name: user.branch?.name || null
         }
       }
