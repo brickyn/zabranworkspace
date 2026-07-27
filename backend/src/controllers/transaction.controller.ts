@@ -63,6 +63,23 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
     const cashierId = req.user?.id;
     const branchId = req.user?.branchId || validatedData.branchId;
 
+    // --- GENERATE SEQUENTIAL TRANSACTION ID (YYMMDDNNNN) ---
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const prefix = `${yy}${mm}${dd}`;
+    
+    // Count transactions today to get the next sequence number
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayCount = await prisma.transaction.count({
+      where: { createdAt: { gte: todayStart } }
+    });
+    const seq = String(todayCount + 1).padStart(4, '0');
+    const transactionId = `${prefix}${seq}`;
+    // --------------------------------------------------------
+
     // --- REQUIRE OPEN SESSION ---
     const openSession = await prisma.registerSession.findFirst({
       where: { branchId, status: 'OPEN' }
@@ -187,7 +204,7 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
       // 3. Create Transaction Header
       const transaction = await tx.transaction.create({
         data: {
-          id: validatedData.id,
+          id: transactionId,
           branchId: branchId,
           sessionId: openSession.id,
           customerId: finalCustomerId,

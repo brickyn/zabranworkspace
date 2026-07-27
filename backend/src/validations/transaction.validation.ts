@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createTransactionSchema = z.object({
-  id: z.string().min(1, 'Transaction ID is required (e.g. b-001-YYMMDD-001)'),
+  id: z.string().optional(), // Generated server-side as YYMMDDNNNN
   branchId: z.string().min(1, 'Branch ID is required'),
   customerId: z.string().optional().nullable(),
   customerName: z.string().optional(),

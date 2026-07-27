@@ -945,8 +945,12 @@ export default function POSPage() {
           transaction={lastTransaction} 
           companyName={sysSettings.STORE_NAME}
           companyAddress={sysSettings.STORE_ADDRESS}
+          companyPhone={sysSettings.STORE_PHONE}
+          receiptHeader={sysSettings.RECEIPT_HEADER}
+          receiptThankyou={sysSettings.RECEIPT_THANKYOU}
           receiptFooter={sysSettings.RECEIPT_FOOTER}
           logoUrl={sysSettings.STORE_LOGO}
+          receiptWidth={sysSettings.RECEIPT_WIDTH || '80mm'}
         />
       </div>
 
