@@ -177,7 +177,12 @@ export default function POSPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await apiClient.get('/products?status=Available');
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const branchId = user?.branchId;
+      // Filter by branch so only products with stock at THIS store are shown
+      const params = branchId ? `?branchId=${branchId}` : '?status=Available';
+      const res = await apiClient.get(`/products${params}`);
       if (res.data.success) {
         setProducts(res.data.data);
       }
@@ -266,12 +271,19 @@ export default function POSPage() {
     try {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
-      
+      const resolvedBranchId = user?.branchId;
+
+      if (!resolvedBranchId) {
+        toast.error('Akun Anda tidak terhubung ke cabang (branchId kosong). Hubungi Admin.');
+        setIsProcessing(false);
+        return;
+      }
+
       // Timestamp-based unique ID to prevent collision
       const now = new Date();
       const dateStr = now.toISOString().slice(2,10).replace(/-/g,''); // YYMMDD
       const timeMs = now.getTime().toString().slice(-5); // last 5 digits of timestamp
-      const transactionId = `b-${user?.branchId || '000'}-${dateStr}-${timeMs}`;
+      const transactionId = `b-${resolvedBranchId}-${dateStr}-${timeMs}`;
       
       if (isSplitBill) {
         const totalSplit = splitPayments.reduce((acc, curr) => acc + curr.amount, 0);
@@ -291,7 +303,7 @@ export default function POSPage() {
 
       const payload: any = {
         id: transactionId,
-        branchId: user?.branchId || 'b-001',
+        branchId: resolvedBranchId,
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
         subtotal: getSubtotal(),

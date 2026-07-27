@@ -77,7 +77,11 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
     // --- CONDITIONAL APPROVAL ENGINE (Task 5.2) ---
     const productIds = validatedData.items.map(item => item.productId);
     const dbProductItems = await prisma.productItem.findMany({ 
-      where: { productId: { in: productIds }, status: 'AVAILABLE', branchId: branchId },
+      where: { 
+        productId: { in: productIds }, 
+        status: { in: ['AVAILABLE', 'Available'] },
+        branchId: branchId 
+      },
       include: { product: true }
     });
     
@@ -132,14 +136,14 @@ export const createTransaction = async (req: AuthRequest, res: Response): Promis
         const productItem = await tx.productItem.findFirst({
           where: {
             productId: item.productId,
-            status: 'AVAILABLE',
+            status: { in: ['AVAILABLE', 'Available'] },
             branchId: branchId
           },
           orderBy: { createdAt: 'asc' } // FIFO
         });
 
         if (!productItem || productItem.qty < item.qty) {
-          throw new Error(`Produk tidak tersedia dalam jumlah yang cukup.`);
+          throw new Error(`Produk (${item.productId}) tidak tersedia atau stok tidak cukup di cabang ini.`);
         }
 
         const newQty = productItem.qty - item.qty;
