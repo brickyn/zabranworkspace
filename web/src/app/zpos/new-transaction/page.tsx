@@ -415,10 +415,10 @@ export default function POSPage() {
 
   return (
     <>
-      <div className="absolute inset-0 flex flex-col lg:flex-row bg-[#f8fafc] overflow-hidden">
+      <div className="absolute inset-0 flex flex-col lg:flex-row bg-[#f8fafc] overflow-hidden p-4 lg:p-6 gap-4 lg:gap-6">
         
         {/* Left Panel: Catalog */}
-        <div className="flex-[3] flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden backdrop-blur-sm">
+        <div className="flex-[3] flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden backdrop-blur-sm shadow-sm">
           
           <div className="pt-8 px-8 pb-4 shrink-0 flex flex-col gap-5">
             <div className="flex justify-between items-center">
@@ -575,7 +575,7 @@ export default function POSPage() {
         </div>
 
         {/* Right Panel: Cart & Checkout Summary */}
-        <div className="w-full lg:w-[450px] shrink-0 flex flex-col h-full bg-white border-l border-slate-200 shadow-[-15px_0_40px_-15px_rgba(0,0,0,0.05)] relative z-10">
+        <div className="w-full lg:w-[450px] shrink-0 flex flex-col h-full bg-white border border-slate-200 rounded-3xl shadow-sm relative z-10 overflow-hidden">
           {/* SESSION LOCK OVERLAY */}
           {!isSessionLoading && !session && (
             <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center border border-slate-200">
