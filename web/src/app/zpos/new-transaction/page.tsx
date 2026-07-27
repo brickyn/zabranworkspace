@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-import { Search, ScanBarcode, Trash2, CreditCard, Banknote, Wallet, User, Phone, CheckCircle2, Loader2, ShoppingCart, Tag, Clock, PauseCircle, PlayCircle } from 'lucide-react';
+import { Search, ScanBarcode, Trash2, CreditCard, Banknote, Wallet, User, Phone, CheckCircle2, Loader2, ShoppingCart, Tag, Clock, PauseCircle, PlayCircle, LayoutGrid, List } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
 import { apiClient } from '@/lib/axios';
 import { toast } from 'react-hot-toast';
@@ -32,6 +32,7 @@ export default function POSPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
   const [promos, setPromos] = useState<any[]>([]);
   const [notes, setNotes] = useState('');
@@ -444,21 +445,37 @@ export default function POSPage() {
           
           {searchError && <div className="px-6 py-2 bg-red-500/10 border-b border-red-500/20 text-red-400 text-sm">{searchError}</div>}
 
-          {/* Categories */}
-          <div className="px-8 py-2 shrink-0 flex gap-3 overflow-x-auto no-scrollbar mask-fade-edges">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-6 py-2.5 rounded-full text-[14px] font-semibold transition-all duration-200 whitespace-nowrap border ${
-                  selectedCategory === cat 
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'
-                }`}
+          {/* Categories & View Toggle */}
+          <div className="px-8 py-2 shrink-0 flex justify-between items-center gap-4">
+            <div className="flex gap-3 overflow-x-auto no-scrollbar mask-fade-edges flex-1">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-6 py-2.5 rounded-full text-[14px] font-semibold transition-all duration-200 whitespace-nowrap border ${
+                    selectedCategory === cat 
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20' 
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 shrink-0 bg-slate-100 p-1 rounded-xl">
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                {cat}
+                <LayoutGrid className="w-4 h-4" />
               </button>
-            ))}
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Product Grid */}
@@ -473,43 +490,81 @@ export default function POSPage() {
                 <p>No products available</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            ) : (
+              <div className={viewMode === 'grid' ? "grid grid-cols-3 gap-6" : "flex flex-col gap-4"}>
                 {filteredProducts.map(product => {
                   const inCart = items.some(i => i.id === product.id);
+                  
+                  if (viewMode === 'list') {
+                    return (
+                      <div 
+                        key={product.id}
+                        onClick={() => handleAddProduct(product)}
+                        className={`relative bg-white border border-slate-200 rounded-xl p-4 transition-all cursor-pointer group flex items-center gap-4 ${
+                          inCart ? 'border-indigo-500 shadow-[0_4px_15px_rgba(79,70,229,0.1)] ring-1 ring-indigo-500' : 'hover:border-indigo-300 hover:shadow-sm'
+                        }`}
+                      >
+                        <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 text-slate-400">
+                          <ShoppingCart className="w-6 h-6 opacity-40" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs text-blue-400 font-mono mb-0.5 truncate">{product.sku || product.id}</div>
+                          <h3 className="text-slate-800 font-bold text-[14px] truncate" title={product.name}>
+                            {product.brand} {product.name}
+                          </h3>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {product.promoPrice ? (
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 text-[10px] line-through">{formatRupiah(product.sellPrice)}</span>
+                              <span className="text-green-400 font-bold text-[14px]">{formatRupiah(product.promoPrice)}</span>
+                            </div>
+                          ) : (
+                            <div className="text-indigo-600 font-extrabold text-[14px]">{formatRupiah(product.sellPrice)}</div>
+                          )}
+                        </div>
+                        {inCart && (
+                          <div className="absolute top-2 right-2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-md z-10">
+                            x{items.find(i => i.id === product.id)?.quantity || 1}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
                   return (
                     <div 
                       key={product.id}
                       onClick={() => handleAddProduct(product)}
-                      className={`relative bg-white border border-slate-200 rounded-xl p-3 transition-all cursor-pointer group ${
+                      className={`relative bg-white border border-slate-200 rounded-xl p-4 transition-all cursor-pointer group flex flex-col h-full ${
                         inCart ? 'border-indigo-500 shadow-[0_8px_30px_rgba(79,70,229,0.1)] ring-2 ring-indigo-500' : 'border-slate-200/50 hover:border-indigo-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] shadow-[0_2px_10px_rgba(0,0,0,0.01)]'
                       }`}
                     >
                       {inCart && (
-                        <div className="absolute top-2 right-12 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-md z-10">
+                        <div className="absolute top-2 right-2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-md z-10">
                           x{items.find(i => i.id === product.id)?.quantity || 1}
                         </div>
                       )}
                       {product.promoPrice && (
-                        <div className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded-md z-0">
+                        <div className="absolute top-2 left-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded-md z-0">
                           PROMO
                         </div>
                       )}
-                      <div className="w-full aspect-square bg-slate-100/50 rounded-[14px] mb-4 flex items-center justify-center text-gray-500">
-                        {/* Placeholder image */}
+                      <div className="w-full h-32 bg-slate-100/50 rounded-lg mb-4 flex items-center justify-center text-gray-500 shrink-0">
                         <ShoppingCart className="w-6 h-6 opacity-20" />
                       </div>
-                      <div className="text-xs text-blue-400 font-mono mb-1">{product.sku || product.id}</div>
-                      <h3 className="text-slate-800 font-bold text-[14px] line-clamp-2 mb-3 leading-snug break-words" title={product.name}>
+                      <div className="text-xs text-blue-400 font-mono mb-1 truncate">{product.sku || product.id}</div>
+                      <h3 className="text-slate-800 font-bold text-[14px] line-clamp-2 mb-3 leading-snug break-words flex-1" title={product.name}>
                         {product.brand} {product.name}
                       </h3>
-                      <div className="mt-auto">
+                      <div className="mt-auto shrink-0 pt-3 border-t border-slate-100">
                         {product.promoPrice ? (
-                          <>
-                            <div className="text-gray-500 text-xs line-through">{formatRupiah(product.sellPrice)}</div>
-                            <div className="text-green-400 font-bold">{formatRupiah(product.promoPrice)}</div>
-                          </>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 text-[10px] line-through">{formatRupiah(product.sellPrice)}</span>
+                            <span className="text-green-400 font-bold text-[15px]">{formatRupiah(product.promoPrice)}</span>
+                          </div>
                         ) : (
-                          <div className="text-indigo-600 font-extrabold text-[16px] tracking-tight">{formatRupiah(product.sellPrice)}</div>
+                          <div className="text-indigo-600 font-extrabold text-[15px] tracking-tight">{formatRupiah(product.sellPrice)}</div>
                         )}
                       </div>
                     </div>
