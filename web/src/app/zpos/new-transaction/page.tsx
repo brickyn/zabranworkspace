@@ -490,7 +490,6 @@ export default function POSPage() {
                 <p>No products available</p>
               </div>
             ) : (
-            ) : (
               <div className={viewMode === 'grid' ? "grid grid-cols-3 gap-6" : "flex flex-col gap-4"}>
                 {filteredProducts.map(product => {
                   const inCart = items.some(i => i.id === product.id);
