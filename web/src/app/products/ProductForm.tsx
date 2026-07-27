@@ -58,7 +58,7 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
     const { name, value } = e.target;
     
     if (['buyPrice', 'developmentCost', 'sellPrice', 'promoPrice'].includes(name)) {
-      let numValue = value === '' ? null : Number(value);
+      let numValue = value === '' ? undefined : Number(value);
       setFormData((prev: any) => ({ ...prev, [name]: numValue }));
     } else {
       setFormData((prev: any) => ({ ...prev, [name]: value }));
@@ -89,7 +89,14 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
       onClose(true);
     } catch (err: any) {
       console.error(err);
-      const errMsg = err.response?.data?.error || err.message || 'An error occurred while saving.';
+      let errMsg = err.message || 'An error occurred while saving.';
+      if (err.response?.data?.error) {
+        if (Array.isArray(err.response.data.error)) {
+          errMsg = err.response.data.error.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        } else {
+          errMsg = err.response.data.error;
+        }
+      }
       setError(errMsg);
       toast.error(errMsg);
     } finally {
