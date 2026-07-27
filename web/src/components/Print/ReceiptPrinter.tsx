@@ -4,11 +4,19 @@ interface ReceiptPrinterProps {
   transaction: any;
   companyName?: string;
   companyAddress?: string;
+  companyPhone?: string;
   receiptFooter?: string;
   logoUrl?: string;
 }
 
-const ReceiptPrinter = forwardRef<HTMLDivElement, ReceiptPrinterProps>(({ transaction, companyName = 'ZABRAN STORE', companyAddress = 'Jl. Contoh Alamat No 123', receiptFooter = 'Barang yang sudah dibeli tidak dapat ditukar/dikembalikan tanpa bukti garansi.', logoUrl }, ref) => {
+const ReceiptPrinter = forwardRef<HTMLDivElement, ReceiptPrinterProps>(({
+  transaction,
+  companyName = 'ZABRAN STORE',
+  companyAddress = 'Jl. Contoh Alamat No 123',
+  companyPhone,
+  receiptFooter = 'Barang yang sudah dibeli tidak dapat ditukar/dikembalikan tanpa bukti garansi.',
+  logoUrl
+}, ref) => {
   if (!transaction) return null;
 
   const dateStr = new Date(transaction.createdAt || new Date()).toLocaleString('id-ID', {
@@ -16,104 +24,149 @@ const ReceiptPrinter = forwardRef<HTMLDivElement, ReceiptPrinterProps>(({ transa
     hour: '2-digit', minute: '2-digit'
   });
 
+  const line = '--------------------------------';
+
+  // Helper: resolve product name from nested structure
+  const getProductName = (item: any): string => {
+    // From createTransaction response: items.productItem.product
+    const p = item.productItem?.product;
+    if (p) {
+      return `${p.brand || ''} ${p.name || ''} ${p.model || ''}`.trim();
+    }
+    // Fallback for other response shapes
+    return item.productName || item.product?.name || item.productId || '-';
+  };
+
+  const getSN = (item: any): string | null => {
+    return item.productItem?.sn || item.product?.serialNumber || null;
+  };
+
+  const getWarranty = (item: any): string | null => {
+    const p = item.productItem?.product || item.product;
+    if (p?.durasiGaransi && p?.satuanGaransi) {
+      return `${p.durasiGaransi} ${p.satuanGaransi}`;
+    }
+    return null;
+  };
+
+  const customerName = transaction.customer?.name || transaction.customerName;
+  const customerPhone = transaction.customer?.phone || transaction.customerPhone;
+
   return (
-    <div ref={ref} className="p-4" style={{ width: '80mm', color: '#000', fontFamily: 'monospace', fontSize: '12px', background: '#fff' }}>
-      <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+    <div ref={ref} style={{ width: '80mm', color: '#000', fontFamily: 'monospace', fontSize: '12px', background: '#fff', padding: '10px 8px' }}>
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '8px' }}>
         {logoUrl && (
-          <img src={logoUrl} alt="Logo" style={{ maxWidth: '80px', maxHeight: '80px', marginBottom: '10px' }} />
+          <img src={logoUrl} alt="Logo" style={{ maxWidth: '70px', maxHeight: '70px', marginBottom: '6px', display: 'block', margin: '0 auto 6px' }} />
         )}
-        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>{companyName}</h2>
-        <p style={{ margin: 0, fontSize: '10px' }}>{companyAddress}</p>
-        <p style={{ margin: '5px 0 0 0' }}>--------------------------------</p>
+        <div style={{ fontSize: '15px', fontWeight: 'bold', letterSpacing: '1px' }}>{companyName}</div>
+        <div style={{ fontSize: '10px', marginTop: '2px' }}>{companyAddress}</div>
+        {companyPhone && <div style={{ fontSize: '10px' }}>Telp: {companyPhone}</div>}
+        <div style={{ margin: '6px 0 0' }}>{line}</div>
       </div>
 
-      <div style={{ marginBottom: '10px' }}>
-        <div>Trx ID: {transaction.id}</div>
+      {/* Transaction Info */}
+      <div style={{ marginBottom: '6px', fontSize: '11px' }}>
+        <div>No    : {transaction.id}</div>
         <div>Tgl   : {dateStr}</div>
         <div>Kasir : {transaction.cashier?.name || 'Admin'}</div>
-        { (transaction.customer?.name || transaction.customerName) && (
-          <div>Plg   : {transaction.customer?.name || transaction.customerName} {transaction.customer?.phone || transaction.customerPhone ? `(${transaction.customer?.phone || transaction.customerPhone})` : ''}</div>
+        {customerName && (
+          <div>Plgn  : {customerName}{customerPhone ? ` (${customerPhone})` : ''}</div>
         )}
       </div>
-      
-      <p style={{ margin: '0 0 5px 0' }}>--------------------------------</p>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px' }}>
+      <div>{line}</div>
+
+      {/* Items */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', margin: '6px 0' }}>
         <tbody>
-          {transaction.items?.map((item: any, idx: number) => (
-            <React.Fragment key={idx}>
-              <tr>
-                <td colSpan={2} style={{ padding: '2px 0' }}>{item.productName || item.product?.name || item.productId}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '2px 0' }}>1x Rp {item.sellingPrice?.toLocaleString('id-ID')}</td>
-                <td style={{ textAlign: 'right', padding: '2px 0' }}>Rp {item.subtotal?.toLocaleString('id-ID')}</td>
-              </tr>
-              {item.discount > 0 && (
+          {transaction.items?.map((item: any, idx: number) => {
+            const productName = getProductName(item);
+            const sn = getSN(item);
+            const warranty = getWarranty(item);
+            const qty = item.qty || 1;
+            const price = item.sellingPrice || item.price || 0;
+            const disc = item.discount || 0;
+            const subtotal = item.subtotal ?? (price * qty - disc);
+
+            return (
+              <React.Fragment key={idx}>
                 <tr>
-                  <td colSpan={2} style={{ padding: '0 0 2px 0', fontSize: '10px', fontStyle: 'italic' }}>
-                    Disc: -Rp {item.discount.toLocaleString('id-ID')}
+                  <td colSpan={2} style={{ padding: '3px 0 1px', fontWeight: 'bold', fontSize: '11px' }}>
+                    {productName}
                   </td>
                 </tr>
-              )}
-              {item.product?.durasiGaransi && item.product?.satuanGaransi && (
                 <tr>
-                  <td colSpan={2} style={{ padding: '0 0 2px 0', fontSize: '10px', color: '#555' }}>
-                    Garansi: {item.product.durasiGaransi} {item.product.satuanGaransi}
-                  </td>
+                  <td style={{ padding: '1px 0', fontSize: '11px' }}>{qty}x Rp {price.toLocaleString('id-ID')}</td>
+                  <td style={{ textAlign: 'right', padding: '1px 0', fontSize: '11px' }}>Rp {subtotal.toLocaleString('id-ID')}</td>
                 </tr>
-              )}
-              {item.product?.serialNumber && (
-                <tr>
-                  <td colSpan={2} style={{ padding: '0 0 2px 0', fontSize: '10px', color: '#555' }}>
-                    SN: {item.product.serialNumber}
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          ))}
+                {disc > 0 && (
+                  <tr>
+                    <td colSpan={2} style={{ padding: '0 0 2px', fontSize: '10px', fontStyle: 'italic', color: '#555' }}>
+                      Diskon: -Rp {disc.toLocaleString('id-ID')}
+                    </td>
+                  </tr>
+                )}
+                {sn && (
+                  <tr>
+                    <td colSpan={2} style={{ padding: '0 0 2px', fontSize: '10px', color: '#555' }}>
+                      SN: {sn}
+                    </td>
+                  </tr>
+                )}
+                {warranty && (
+                  <tr>
+                    <td colSpan={2} style={{ padding: '0 0 4px', fontSize: '10px', color: '#555' }}>
+                      Garansi: {warranty}
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
         </tbody>
       </table>
 
-      <p style={{ margin: '0 0 5px 0' }}>--------------------------------</p>
+      <div>{line}</div>
 
-      <table style={{ width: '100%', fontWeight: 'bold' }}>
+      {/* Totals */}
+      <table style={{ width: '100%', margin: '6px 0', fontSize: '11px' }}>
         <tbody>
           {transaction.discount > 0 && (
             <tr>
-              <td>Total Disc</td>
+              <td>Total Diskon</td>
               <td style={{ textAlign: 'right' }}>-Rp {transaction.discount.toLocaleString('id-ID')}</td>
             </tr>
           )}
           <tr>
-            <td>TOTAL</td>
-            <td style={{ textAlign: 'right' }}>Rp {transaction.totalAmount?.toLocaleString('id-ID')}</td>
+            <td style={{ fontWeight: 'bold', fontSize: '13px' }}>TOTAL</td>
+            <td style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '13px' }}>
+              Rp {transaction.totalAmount?.toLocaleString('id-ID')}
+            </td>
           </tr>
-          {transaction.paymentMethod === 'Split Bill' && transaction.splitPayments ? (
-            <>
-              <tr>
-                <td colSpan={2} style={{ fontWeight: 'normal', paddingTop: '5px', paddingBottom: '2px' }}>Split Payment:</td>
+          <tr>
+            <td style={{ paddingTop: '4px' }}>Metode</td>
+            <td style={{ textAlign: 'right', paddingTop: '4px' }}>{transaction.paymentMethod}</td>
+          </tr>
+          {/* Split payments detail */}
+          {transaction.paymentMethod === 'Split Bill' && Array.isArray(transaction.splitPayments) && (
+            transaction.splitPayments.map((sp: any, i: number) => (
+              <tr key={i}>
+                <td style={{ paddingLeft: '8px', fontSize: '10px' }}>• {sp.method}</td>
+                <td style={{ textAlign: 'right', fontSize: '10px' }}>Rp {sp.amount?.toLocaleString('id-ID')}</td>
               </tr>
-              {transaction.splitPayments.map((sp: any, idx: number) => (
-                <tr key={idx}>
-                  <td style={{ fontWeight: 'normal', paddingLeft: '10px' }}>- {sp.method}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 'normal' }}>Rp {sp.amount?.toLocaleString('id-ID')}</td>
-                </tr>
-              ))}
-            </>
-          ) : (
-            <tr>
-              <td style={{ fontWeight: 'normal', paddingTop: '5px' }}>Payment</td>
-              <td style={{ textAlign: 'right', fontWeight: 'normal', paddingTop: '5px' }}>{transaction.paymentMethod}</td>
-            </tr>
+            ))
           )}
         </tbody>
       </table>
 
-      <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '10px' }}>
-        <p style={{ margin: 0 }}>Terima Kasih Atas Kunjungan Anda</p>
-        <p style={{ margin: '5px 0' }}>{receiptFooter}</p>
-        <p style={{ margin: '10px 0 0 0', fontWeight: 'bold' }}>— Zabran Workspaces —</p>
+      <div>{line}</div>
+
+      {/* Footer */}
+      <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '10px' }}>
+        <div>Terima Kasih Atas Kunjungan Anda!</div>
+        {receiptFooter && <div style={{ margin: '4px 0', fontStyle: 'italic' }}>{receiptFooter}</div>}
+        <div style={{ marginTop: '8px', fontWeight: 'bold', letterSpacing: '1px' }}>— {companyName} —</div>
       </div>
     </div>
   );

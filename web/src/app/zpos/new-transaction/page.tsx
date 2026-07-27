@@ -320,14 +320,12 @@ export default function POSPage() {
       const res = await apiClient.post('/transactions', payload);
       if (res.data.success) {
         setLastTransaction(res.data.data);
-        setShowSuccessModal(true);
-        toast.success('Payment successful!');
         clearCart(); // CRITICAL: Reset cart after successful transaction
         setCashReceived('');
         fetchProducts();
-        setTimeout(() => {
-          handlePrint();
-        }, 500);
+        // Show success modal — user clicks Cetak Nota to print
+        setShowSuccessModal(true);
+        toast.success('Transaksi berhasil!');
       }
     } catch (error: any) {
       console.error(error);
@@ -582,13 +580,13 @@ export default function POSPage() {
               <div className="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(99,102,241,0.3)]">
                 <Lock className="w-10 h-10 text-indigo-400" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Kasir Terkunci</h2>
-              <p className="text-slate-300 mb-8 max-w-sm">
+              <h2 className="text-2xl font-bold text-white mb-2">Kasir Terkunci</h2>
+              <p className="text-white/70 mb-8 max-w-sm">
                 Anda dapat melihat stok toko, namun harus membuka shift kasir terlebih dahulu untuk melakukan transaksi.
               </p>
               <button
                 onClick={() => setShowOpenSession(true)}
-                className="flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-slate-800 font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]"
+                className="flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]"
               >
                 <Wallet className="w-5 h-5" />
                 Buka Shift Kasir Sekarang
@@ -914,7 +912,7 @@ export default function POSPage() {
               <button
                 onClick={() => handleCheckout()}
                 disabled={items.length === 0 || isProcessing}
-                className="flex-[2] py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-slate-800 rounded-xl font-bold shadow-lg shadow-blue-500/25 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                className="flex-[2] py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-bold shadow-lg shadow-blue-500/25 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
                 {isProcessing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -941,24 +939,53 @@ export default function POSPage() {
       </div>
 
       {/* Success Modal */}
-      {showSuccessModal && (
+      {showSuccessModal && lastTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-8 h-8 text-green-500" />
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-500/15 rounded-full flex items-center justify-center mx-auto mb-4 ring-4 ring-green-500/10">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">Transaksi Berhasil!</h2>
+              <p className="text-slate-500 text-sm mt-1">Pembayaran telah diproses & tercatat.</p>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Payment Successful!</h2>
-            <p className="text-slate-500 text-sm mb-6">Transaction recorded successfully.</p>
-            <div className="flex gap-3">
+
+            {/* Transaction Summary */}
+            <div className="bg-slate-50 rounded-2xl p-4 mb-6 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500">No. Transaksi</span>
+                <span className="font-mono font-semibold text-slate-800 text-xs">{lastTransaction.id}</span>
+              </div>
+              {(lastTransaction.customer?.name || lastTransaction.customerName) && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Customer</span>
+                  <span className="font-semibold text-slate-800">{lastTransaction.customer?.name || lastTransaction.customerName}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-500">Metode Bayar</span>
+                <span className="font-semibold text-slate-800">{lastTransaction.paymentMethod}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-slate-200">
+                <span className="text-slate-700 font-bold">Total</span>
+                <span className="font-bold text-lg text-indigo-600">
+                  Rp {lastTransaction.totalAmount?.toLocaleString('id-ID')}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
               <button 
-                onClick={handlePrint}
-                className="flex-1 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl font-medium transition-colors"
+                onClick={() => { handlePrint(); }}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-[15px] transition-all shadow-lg shadow-emerald-600/25 active:scale-[0.98] flex items-center justify-center gap-2"
               >
-                Cetak Nota
+                🖨️ Cetak Nota / Struk
               </button>
               <button 
                 onClick={handleNewTransaction}
-                className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[17px] font-bold transition-all duration-200 shadow-[0_8px_25px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_35px_rgba(79,70,229,0.35)] active:scale-[0.98]"
+                className="w-full py-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl font-semibold text-[14px] transition-all active:scale-[0.98]"
               >
                 Transaksi Baru
               </button>

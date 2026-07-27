@@ -48,7 +48,7 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
         category: '',
         serialNumber: '',
         imageUrl: '',
-        branchId: user?.branchId || 'branch-001',
+        branchId: user?.branchId || '',
       });
     }
     setError(null);
@@ -72,11 +72,22 @@ export default function ProductForm({ open, onClose, product }: ProductFormProps
 
     try {
       const targetSku = formData.sku || formData.id || `PROD-${Date.now()}`;
+
+      // Validate branchId is present
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const resolvedBranchId = formData.branchId || user?.branchId;
+      if (!resolvedBranchId) {
+        setError('Akun Anda tidak terhubung ke cabang manapun. Hubungi Super Admin untuk mengatur branchId.');
+        setLoading(false);
+        return;
+      }
+
       const payload = { 
         ...formData, 
         id: product ? product.id : targetSku,
         sku: targetSku,
-        branchId: formData.branchId || 'branch-001'
+        branchId: resolvedBranchId
       };
 
       if (product) {
