@@ -53,14 +53,6 @@ const ReceiptPrinter = forwardRef<HTMLDivElement, ReceiptPrinterProps>(({
     return item.productItem?.sn || item.product?.serialNumber || null;
   };
 
-  const getWarranty = (item: any): string | null => {
-    const p = item.productItem?.product || item.product;
-    if (p?.durasiGaransi && p?.satuanGaransi) {
-      return `${p.durasiGaransi} ${p.satuanGaransi}`;
-    }
-    return null;
-  };
-
   const customerName = transaction.customer?.name || transaction.customerName;
   const customerPhone = transaction.customer?.phone || transaction.customerPhone;
 
@@ -139,7 +131,6 @@ const ReceiptPrinter = forwardRef<HTMLDivElement, ReceiptPrinterProps>(({
           {transaction.items?.map((item: any, idx: number) => {
             const productName = getProductName(item);
             const sn = getSN(item);
-            const warranty = getWarranty(item);
             const qty = item.qty || 1;
             const price = item.sellingPrice || item.price || 0;
             const disc = item.discount || 0;
@@ -167,13 +158,6 @@ const ReceiptPrinter = forwardRef<HTMLDivElement, ReceiptPrinterProps>(({
                   <tr>
                     <td colSpan={2} style={{ padding: '0 0 1px', fontSize: '10px', color: '#555' }}>
                       SN: {sn}
-                    </td>
-                  </tr>
-                )}
-                {warranty && (
-                  <tr>
-                    <td colSpan={2} style={{ padding: '0 0 3px', fontSize: '10px', color: '#555' }}>
-                      Garansi: {warranty}
                     </td>
                   </tr>
                 )}

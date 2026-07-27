@@ -149,6 +149,23 @@ export default function SettingsPage() {
     setSettings(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('File harus berupa gambar');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      setSettings(prev => ({ ...prev, STORE_LOGO: base64String }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -220,16 +237,28 @@ export default function SettingsPage() {
                   <textarea name="STORE_ADDRESS" value={settings.STORE_ADDRESS || ''} onChange={handleChange} rows={2} className={inputCls + ' pl-9 resize-none'} placeholder="Jl. Contoh No. 123, Kota" />
                 </div>
               </Field>
-              <Field label="URL Logo Toko (https://...)">
+              <Field label="Logo Toko (Upload Gambar)">
                 <div className="relative">
                   <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input name="STORE_LOGO" value={settings.STORE_LOGO || ''} onChange={handleChange} className={inputCls + ' pl-9'} placeholder="https://domain.com/logo.png" />
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleLogoUpload} 
+                    className={inputCls + ' pl-9 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600'} 
+                  />
                 </div>
               </Field>
               {settings.STORE_LOGO && (
                 <div className="flex items-center gap-3 mt-2 p-3 bg-white/5 rounded-xl border border-glass-border">
-                  <img src={settings.STORE_LOGO} alt="Logo preview" className="h-12 w-12 object-contain rounded" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                  <img src={settings.STORE_LOGO} alt="Logo preview" className="h-12 w-12 object-contain rounded bg-white" onError={(e) => (e.currentTarget.style.display = 'none')} />
                   <span className="text-xs text-gray-400">Preview logo. Akan tampil di header nota.</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setSettings(prev => ({ ...prev, STORE_LOGO: '' }))}
+                    className="ml-auto text-xs text-red-400 hover:text-red-300 px-2 py-1 bg-red-400/10 rounded"
+                  >
+                    Hapus Logo
+                  </button>
                 </div>
               )}
             </SectionCard>
