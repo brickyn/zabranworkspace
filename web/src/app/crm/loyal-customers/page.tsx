@@ -16,7 +16,7 @@ export default function LoyalCustomersPage() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
-  const [filterType, setFilterType] = useState('month'); // exact, month, year, all
+  const [filterType, setFilterType] = useState('all'); // exact, month, year, all (default 'all' to show all imported historical data)
   const [filterExactDate, setFilterExactDate] = useState('');
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
@@ -57,6 +57,8 @@ export default function LoyalCustomersPage() {
         params.append('year', filterYear.toString());
       } else if (filterType === 'year') {
         params.append('year', filterYear.toString());
+      } else if (filterType === 'all') {
+        params.append('filterType', 'all');
       }
       const query = params.toString() ? `?${params.toString()}` : '';
 
@@ -66,10 +68,8 @@ export default function LoyalCustomersPage() {
       ]);
 
       if (leaderboardRes.data.success) {
-        // Filter repeat/loyal customers (yearlyQty > 1 or non-Reguler badge)
-        const repeatCustomers = (leaderboardRes.data.data.topLoyal || []).filter(
-          (c: any) => c.yearlyQty > 1 || (c.loyaltyBadge && c.loyaltyBadge !== 'Reguler')
-        );
+        // Show repeat/loyal customers
+        const repeatCustomers = (leaderboardRes.data.data.topLoyal || []);
         setCustomers(repeatCustomers);
         setCurrentPage(1);
       }
@@ -127,40 +127,42 @@ export default function LoyalCustomersPage() {
         const defaultBranchId = branches.length > 0 ? branches[0].id : '';
 
         const formattedCustomers = rows.map(r => {
-          const bName = r['Cabang'] || r['cabang'] || '';
+          const bName = r['Cabang'] || r['cabang'] || r['Brand'] || r['Toko'] || '';
           const foundBranch = branches.find(b => b.name.toLowerCase().includes(bName.toLowerCase()));
           const bId = foundBranch ? foundBranch.id : defaultBranchId;
 
           const isActive = r['Status']?.toString().toLowerCase().includes('aktif') && !r['Status']?.toString().toLowerCase().includes('tidak');
           
           let parsedDate = new Date();
-          if (r['Tanggal Pembelian']) {
-            if (typeof r['Tanggal Pembelian'] === 'number') {
-               parsedDate = new Date(Math.round((r['Tanggal Pembelian'] - 25569) * 86400 * 1000));
+          const rawDate = r['Tanggal Pembelian'] || r['Tanggal'] || r['Date'];
+          if (rawDate) {
+            if (typeof rawDate === 'number') {
+               parsedDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
             } else {
-               parsedDate = new Date(r['Tanggal Pembelian']);
+               parsedDate = new Date(rawDate);
             }
           }
 
           return {
-            customerName: r['Nama Customer'] || r['Nama Pelanggan'] || r['Nama'] || 'Tanpa Nama',
-            phone: r['Nomor Telfon'] || r['Nomor WA'] || r['No. WhatsApp'] || r['Telepon'] || '-',
+            customerName: r['Nama Customer'] || r['Nama Pelanggan'] || r['Nama'] || r['Customer'] || 'Tanpa Nama',
+            phone: r['Nomor Telfon'] || r['Nomor WA'] || r['No. WhatsApp'] || r['Telepon'] || r['Phone'] || r['WA'] || '-',
             branchId: bId,
-            purchaseDate: parsedDate.toISOString(),
-            purchaseDetails: r['Keterangan Pembelian'] || r['Laptop'] || 'Repeat Order',
+            purchaseDate: isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString(),
+            purchaseDetails: r['Keterangan Pembelian'] || r['Laptop'] || r['Keterangan'] || 'Repeat Order',
             purchaseQty: Number(r['Jumlah Unit'] || r['Qty'] || r['Total Pembelian (Qty)'] || 1),
-            purchaseAmount: Number(r['Nominal Belanja (Rp)'] || r['Total Nominal (Rp)'] || r['Total'] || r['Nominal'] || 0),
+            purchaseAmount: Number(r['Nominal Belanja (Rp)'] || r['Total Nominal (Rp)'] || r['Total'] || r['Nominal'] || r['Amount'] || 0),
             isActive: isActive !== undefined ? isActive : true,
             picName: currentUser?.name || 'CRM Staff'
           };
         });
 
-        await apiClient.post('/crm/customers/import', { customers: formattedCustomers });
-        toast.success(`Berhasil mengimport ${formattedCustomers.length} data pelanggan loyal`);
+        const res = await apiClient.post('/crm/customers/import', { customers: formattedCustomers });
+        toast.success(`Berhasil mengimport ${res.data?.count || formattedCustomers.length} data pelanggan loyal!`);
+        setFilterType('all');
         fetchData();
-      } catch (error) {
+      } catch (error: any) {
         console.error(error);
-        toast.error('Gagal mengimport file excel. Pastikan format sesuai.');
+        toast.error(error.response?.data?.error || 'Gagal mengimport file excel. Pastikan format sesuai.');
         setLoading(false);
       }
     };

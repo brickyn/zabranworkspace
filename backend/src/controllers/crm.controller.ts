@@ -2,14 +2,19 @@ import { Request, Response } from 'express';
 import prisma from '../prisma';
 
 const getDateFilters = (req: Request) => {
-  const { month, year, startDate, endDate, branchId } = req.query;
+  const { month, year, startDate, endDate, branchId, filterType } = req.query;
   
-  let start: Date;
-  let end: Date;
-  let prevStart: Date;
-  let prevEnd: Date;
+  let start: Date | undefined;
+  let end: Date | undefined;
+  let prevStart: Date | undefined;
+  let prevEnd: Date | undefined;
 
-  if (startDate && endDate) {
+  if (filterType === 'all') {
+    start = undefined;
+    end = undefined;
+    prevStart = undefined;
+    prevEnd = undefined;
+  } else if (startDate && endDate) {
     start = new Date(startDate as string);
     start.setHours(0, 0, 0, 0);
     end = new Date(endDate as string);
@@ -25,10 +30,9 @@ const getDateFilters = (req: Request) => {
     
     prevStart = new Date(y - 1, 0, 1);
     prevEnd = new Date(y - 1, 11, 31, 23, 59, 59);
-  } else {
-    // Month and year (or default to current month/year)
-    const m = Number(month) || new Date().getMonth() + 1;
-    const y = Number(year) || new Date().getFullYear();
+  } else if (month && year) {
+    const m = Number(month);
+    const y = Number(year);
     start = new Date(y, m - 1, 1);
     end = new Date(y, m, 0, 23, 59, 59);
     
@@ -37,6 +41,12 @@ const getDateFilters = (req: Request) => {
     if (prevM === 0) { prevM = 12; prevY = y - 1; }
     prevStart = new Date(prevY, prevM - 1, 1);
     prevEnd = new Date(prevY, prevM, 0, 23, 59, 59);
+  } else {
+    // Default to all time if no specific date filters provided
+    start = undefined;
+    end = undefined;
+    prevStart = undefined;
+    prevEnd = undefined;
   }
 
   const branchFilter = branchId ? { branchId: branchId as string } : {};
@@ -48,6 +58,9 @@ export const getCRMMetrics = async (req: Request, res: Response) => {
   try {
     const { start, end, prevStart, prevEnd, branchFilter } = getDateFilters(req);
     
+    const dateQuery = (start && end) ? { purchaseDate: { gte: start, lte: end } } : {};
+    const prevDateQuery = (prevStart && prevEnd) ? { purchaseDate: { gte: prevStart, lte: prevEnd } } : {};
+
     const [
       dailyReviews, prevDailyReviews, 
       guests, prevGuests, 
@@ -58,18 +71,18 @@ export const getCRMMetrics = async (req: Request, res: Response) => {
       totalInactiveCustomers,
       activitiesWithResponse
     ] = await Promise.all([
-      prisma.cRMDailyReview.findMany({ where: { date: { gte: start, lte: end }, ...branchFilter } }),
-      prisma.cRMDailyReview.findMany({ where: { date: { gte: prevStart, lte: prevEnd }, ...branchFilter } }),
-      prisma.cRMMysteryGuest.findMany({ where: { date: { gte: start, lte: end }, ...branchFilter } }),
-      prisma.cRMMysteryGuest.findMany({ where: { date: { gte: prevStart, lte: prevEnd }, ...branchFilter } }),
-      prisma.cRMActivity.count({ where: { date: { gte: start, lte: end } } }), // Activities are not branch-bound in schema yet
-      prisma.cRMActivity.count({ where: { date: { gte: prevStart, lte: prevEnd } } }),
-      prisma.cRMCustomerData.findMany({ where: { purchaseDate: { gte: start, lte: end }, ...branchFilter } }),
-      prisma.cRMCustomerData.findMany({ where: { purchaseDate: { gte: prevStart, lte: prevEnd }, ...branchFilter } }),
-      prisma.cRMCustomerData.groupBy({ by: ['phone'], _count: { _all: true } }), // to check repeat overall
+      prisma.cRMDailyReview.findMany({ where: { ...branchFilter } }),
+      prisma.cRMDailyReview.findMany({ where: { ...branchFilter } }),
+      prisma.cRMMysteryGuest.findMany({ where: { ...branchFilter } }),
+      prisma.cRMMysteryGuest.findMany({ where: { ...branchFilter } }),
+      prisma.cRMActivity.count(),
+      prisma.cRMActivity.count(),
+      prisma.cRMCustomerData.findMany({ where: { ...branchFilter, ...dateQuery } }),
+      prisma.cRMCustomerData.findMany({ where: { ...branchFilter, ...prevDateQuery } }),
+      prisma.cRMCustomerData.groupBy({ by: ['phone'], _count: { _all: true } }),
       prisma.cRMCustomerData.groupBy({ by: ['phone'], where: { isActive: true, ...branchFilter } }),
       prisma.cRMCustomerData.groupBy({ by: ['phone'], where: { isActive: false, ...branchFilter } }),
-      prisma.cRMActivity.findMany({ where: { date: { gte: start, lte: end }, responseTime: { not: null } } })
+      prisma.cRMActivity.findMany({ where: { responseTime: { not: null } } })
     ]);
 
     const calculateAvgRating = (reviews: any[]) => {
@@ -88,15 +101,12 @@ export const getCRMMetrics = async (req: Request, res: Response) => {
 
     const totalReviews = dailyReviews.reduce((sum, r) => sum + r.star5 + r.star4 + r.star3 + r.star2 + r.star1, 0);
 
-    // Mystery Guest Score
     const avgMysteryGuest = guests.length > 0 ? guests.reduce((acc, g) => acc + g.score, 0) / guests.length : 0;
     const prevAvgMysteryGuest = prevGuests.length > 0 ? prevGuests.reduce((acc, g) => acc + g.score, 0) / prevGuests.length : 0;
     const mysteryGuestTrend = prevAvgMysteryGuest === 0 ? (avgMysteryGuest > 0 ? 100 : 0) : ((avgMysteryGuest - prevAvgMysteryGuest) / prevAvgMysteryGuest) * 100;
 
-    // Total Activities
     const activitiesTrend = prevActivities === 0 ? (activities > 0 ? 100 : 0) : ((activities - prevActivities) / prevActivities) * 100;
 
-    // Calculate Response Time
     const avgResponseTime = activitiesWithResponse.length > 0 
       ? activitiesWithResponse.reduce((sum, r) => sum + r.responseTime!, 0) / activitiesWithResponse.length 
       : 0;
@@ -111,7 +121,6 @@ export const getCRMMetrics = async (req: Request, res: Response) => {
     const activePercentage = totalActiveCustomers.length > 0 ? (totalActiveCustomers.length / (totalActiveCustomers.length + totalInactiveCustomers.length)) * 100 : 0;
     const inactivePercentage = totalInactiveCustomers.length > 0 ? (totalInactiveCustomers.length / (totalActiveCustomers.length + totalInactiveCustomers.length)) * 100 : 0;
 
-    // Repeat Order Logic
     const phoneCountMap = new Map();
     allCustomerPhones.forEach(p => phoneCountMap.set(p.phone, p._count._all));
     
@@ -150,8 +159,9 @@ export const getCRMMetrics = async (req: Request, res: Response) => {
 export const getActivities = async (req: Request, res: Response) => {
   try {
     const { start, end } = getDateFilters(req);
+    const dateQuery = (start && end) ? { date: { gte: start, lte: end } } : {};
     const activities = await prisma.cRMActivity.findMany({
-      where: { date: { gte: start, lte: end } },
+      where: dateQuery,
       orderBy: { date: 'desc' }
     });
     res.json({ success: true, data: activities });
@@ -182,8 +192,9 @@ export const createActivity = async (req: Request, res: Response) => {
 export const getDailyReviews = async (req: Request, res: Response) => {
   try {
     const { start, end } = getDateFilters(req);
+    const dateQuery = (start && end) ? { date: { gte: start, lte: end } } : {};
     const reviews = await prisma.cRMDailyReview.findMany({
-      where: { date: { gte: start, lte: end } },
+      where: dateQuery,
       include: { branch: { select: { name: true } } },
       orderBy: { date: 'desc' }
     });
@@ -219,7 +230,7 @@ export const createDailyReview = async (req: Request, res: Response) => {
 export const getCustomerData = async (req: Request, res: Response) => {
   try {
     const { start, end, branchFilter } = getDateFilters(req);
-    const dateFilter = { purchaseDate: { gte: start, lte: end } };
+    const dateFilter = (start && end) ? { purchaseDate: { gte: start, lte: end } } : {};
 
     const customers = await prisma.cRMCustomerData.findMany({
       where: { ...branchFilter, ...dateFilter },
@@ -227,13 +238,8 @@ export const getCustomerData = async (req: Request, res: Response) => {
       orderBy: { purchaseDate: 'desc' }
     });
 
-    // Calculate loyalty logic for all customers
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
     const yearlyData = await prisma.cRMCustomerData.groupBy({
       by: ['phone'],
-      where: { purchaseDate: { gte: oneYearAgo } },
       _sum: { purchaseQty: true, purchaseAmount: true }
     });
 
@@ -250,7 +256,7 @@ export const getCustomerData = async (req: Request, res: Response) => {
       else if (totalAmount >= 35000000) badge = 'Gold';
       else if (totalAmount >= 15000000) badge = 'Silver';
       else if (totalAmount >= 1000000) badge = 'Bronze';
-      else if (totalQty > 4) badge = 'Loyal';
+      else if (totalQty > 1) badge = 'Loyal';
 
       return {
         ...c,
@@ -316,29 +322,63 @@ export const updateCustomerData = async (req: Request, res: Response) => {
 export const importCustomerData = async (req: Request, res: Response) => {
   try {
     const { customers } = req.body;
-    if (!customers || !Array.isArray(customers)) {
-      return res.status(400).json({ success: false, error: 'Invalid data format' });
+    if (!customers || !Array.isArray(customers) || customers.length === 0) {
+      return res.status(400).json({ success: false, error: 'Format data tidak valid atau data kosong' });
     }
 
+    const branches = await prisma.branch.findMany({ select: { id: true, name: true } });
+    const defaultBranchId = branches.length > 0 ? branches[0].id : null;
+
+    if (!defaultBranchId) {
+      return res.status(400).json({ success: false, error: 'Belum ada data cabang di database. Silakan buat cabang dahulu.' });
+    }
+
+    const dataToInsert = customers.map((c: any) => {
+      let targetBranchId = defaultBranchId;
+      if (c.branchId) {
+        const found = branches.find(b => b.id === c.branchId || b.name.toLowerCase().includes(String(c.branchId).toLowerCase()));
+        if (found) targetBranchId = found.id;
+      }
+
+      let pDate = new Date();
+      if (c.purchaseDate) {
+        const parsed = new Date(c.purchaseDate);
+        if (!isNaN(parsed.getTime())) {
+          pDate = parsed;
+        }
+      }
+
+      let fDate = null;
+      if (c.lastFollowUp) {
+        const parsedF = new Date(c.lastFollowUp);
+        if (!isNaN(parsedF.getTime())) {
+          fDate = parsedF;
+        }
+      }
+
+      return {
+        customerName: String(c.customerName || c.name || 'Tanpa Nama').trim(),
+        phone: String(c.phone || '-').trim(),
+        branchId: targetBranchId,
+        purchaseDate: pDate,
+        purchaseDetails: String(c.purchaseDetails || 'Import Data').trim(),
+        purchaseQty: Math.max(1, Number(c.purchaseQty) || 1),
+        purchaseAmount: Math.max(0, Number(c.purchaseAmount) || 0),
+        isActive: c.isActive === true || c.isActive === 'true' || String(c.isActive).toLowerCase().includes('aktif'),
+        lastFollowUp: fDate,
+        followUpResult: c.followUpResult ? String(c.followUpResult) : null,
+        picName: c.picName ? String(c.picName) : 'CRM Staff',
+      };
+    });
+
     const created = await prisma.cRMCustomerData.createMany({
-      data: customers.map((c: any) => ({
-        customerName: c.customerName,
-        phone: c.phone,
-        branchId: c.branchId,
-        purchaseDate: new Date(c.purchaseDate),
-        purchaseDetails: c.purchaseDetails,
-        purchaseQty: Number(c.purchaseQty) || 1,
-        purchaseAmount: Number(c.purchaseAmount) || 0,
-        isActive: c.isActive === true || c.isActive === 'true',
-        lastFollowUp: c.lastFollowUp ? new Date(c.lastFollowUp) : null,
-        followUpResult: c.followUpResult,
-        picName: c.picName || 'CRM Staff',
-      }))
+      data: dataToInsert
     });
 
     res.status(201).json({ success: true, count: created.count });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to import customer data' });
+  } catch (error: any) {
+    console.error('[CRM IMPORT ERROR]', error);
+    res.status(500).json({ success: false, error: error.message || 'Gagal mengimport data pelanggan' });
   }
 };
 
@@ -346,23 +386,19 @@ export const importCustomerData = async (req: Request, res: Response) => {
 export const getLeaderboard = async (req: Request, res: Response) => {
   try {
     const { start, end, branchFilter } = getDateFilters(req);
+    const dateQuery = (start && end) ? { purchaseDate: { gte: start, lte: end } } : {};
 
-    // Find phones that bought during the requested period
+    // Find phones that bought during the requested period (or all if start/end undefined)
     const customersInPeriod = await prisma.cRMCustomerData.findMany({
-      where: { purchaseDate: { gte: start, lte: end }, ...branchFilter },
+      where: { ...dateQuery, ...branchFilter },
       select: { phone: true }
     });
     const phonesInPeriod = Array.from(new Set(customersInPeriod.map(c => c.phone)));
 
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-    // Group by phone for the past year to calculate actual loyalty badge, but only for phones active in this period
     const yearlyData = await prisma.cRMCustomerData.groupBy({
       by: ['phone'],
       where: { 
-        purchaseDate: { gte: oneYearAgo },
-        phone: { in: phonesInPeriod },
+        ...(phonesInPeriod.length > 0 ? { phone: { in: phonesInPeriod } } : {}),
         ...branchFilter 
       },
       _sum: { purchaseQty: true, purchaseAmount: true },
@@ -378,11 +414,11 @@ export const getLeaderboard = async (req: Request, res: Response) => {
       else if (totalAmount >= 35000000) badge = 'Gold';
       else if (totalAmount >= 15000000) badge = 'Silver';
       else if (totalAmount >= 1000000) badge = 'Bronze';
-      else if (totalQty > 4) badge = 'Loyal';
+      else if (totalQty > 1) badge = 'Loyal';
 
       return {
         phone: d.phone,
-        customerName: d._max.customerName,
+        customerName: d._max.customerName || 'Tanpa Nama',
         lastFollowUp: d._max.lastFollowUp,
         yearlyQty: totalQty,
         yearlyAmount: totalAmount,
@@ -390,13 +426,11 @@ export const getLeaderboard = async (req: Request, res: Response) => {
       };
     });
 
-    // Filter out reguler for leaderboard? Actually, just return all and sort on frontend, or sort here.
-    // Let's sort and return top arrays directly.
     const topSpenders = [...enriched].sort((a, b) => b.yearlyAmount - a.yearlyAmount);
     const topLoyal = [...enriched].sort((a, b) => b.yearlyQty - a.yearlyQty);
     
-    const badgeOwnersCount = enriched.filter(e => e.loyaltyBadge !== 'Reguler' && e.loyaltyBadge !== 'Loyal').length;
-    const loyalCount = enriched.filter(e => e.loyaltyBadge === 'Loyal').length;
+    const badgeOwnersCount = enriched.filter(e => e.loyaltyBadge !== 'Reguler').length;
+    const loyalCount = enriched.filter(e => e.loyaltyBadge !== 'Reguler').length;
 
     res.json({
       success: true,
@@ -407,8 +441,9 @@ export const getLeaderboard = async (req: Request, res: Response) => {
         loyalCount
       }
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
+  } catch (error: any) {
+    console.error('[LEADERBOARD ERROR]', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch leaderboard' });
   }
 };
 
