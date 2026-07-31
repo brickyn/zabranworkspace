@@ -214,7 +214,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsMounted(true);
     const userData = localStorage.getItem('user');
+    const loginTime = localStorage.getItem('loginTimestamp');
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
     if (userData) {
+      // Proactive 24-hour session expiry check
+      if (loginTime && (Date.now() - Number(loginTime) > TWENTY_FOUR_HOURS)) {
+        toast.error('Sesi login Anda telah berakhir (24 Jam). Silakan login kembali.');
+        handleLogout();
+        return;
+      }
+
       const u = JSON.parse(userData);
       setUser(u);
       
@@ -235,6 +245,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('loginTimestamp');
     router.push('/login');
   };
 

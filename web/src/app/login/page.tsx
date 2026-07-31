@@ -42,6 +42,7 @@ export default function LoginPage() {
         };
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(normalizedUser));
+        localStorage.setItem('loginTimestamp', Date.now().toString());
         if (normalizedUser.role === 'Cashier') {
           router.push('/zpos/new-transaction');
         } else if (normalizedUser.role === 'Leader') {

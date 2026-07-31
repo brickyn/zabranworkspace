@@ -27,6 +27,7 @@ apiClient.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        localStorage.removeItem('loginTimestamp');
         window.location.href = '/login';
       }
     }
