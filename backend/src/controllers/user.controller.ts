@@ -75,6 +75,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    const cleanBranchId = (branchId && String(branchId).trim() !== '') ? String(branchId) : null;
 
     const user = await prisma.user.create({
       data: { 
@@ -86,22 +87,24 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         jobTitle: jobTitle || undefined,
         division: division || undefined,
         permissions: permissions || undefined,
-        branchId 
+        branchId: cleanBranchId 
       }
     });
     
     const { password: _, ...userWithoutPassword } = user;
     res.status(201).json({ success: true, data: userWithoutPassword });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to create user' });
+  } catch (error: any) {
+    console.error('Error in createUser:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to create user' });
   }
 };
 
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, name, role, branchId, jobTitle, division, permissions } = req.body;
+    const cleanBranchId = (branchId && String(branchId).trim() !== '') ? String(branchId) : null;
     
-    const updateData: any = { name, role, branchId, jobTitle, division, permissions };
+    const updateData: any = { name, role, branchId: cleanBranchId, jobTitle, division, permissions };
     if (email) updateData.email = email;
     if (password) updateData.password = await bcrypt.hash(password, 10);
 

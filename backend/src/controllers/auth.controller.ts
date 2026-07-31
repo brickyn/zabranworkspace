@@ -131,7 +131,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'CRM.View'],
       manager: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View'],
       management: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View', 'Users.View'],
-      finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit']
+      finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit'],
+      crm: ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard'],
+      'crm staff': ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard'],
+      'crm admin': ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard'],
+      'crm manager': ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard']
     };
 
     for (const [key, perms] of Object.entries(ROLE_DEFAULTS)) {

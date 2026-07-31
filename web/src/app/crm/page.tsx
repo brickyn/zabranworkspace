@@ -292,13 +292,13 @@ export default function CRMHub() {
                               {idx + 1}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-foreground truncate max-w-[120px]">{cust.name}</p>
+                              <p className="text-sm font-bold text-foreground truncate max-w-[120px]">{cust.customerName || 'Tanpa Nama'}</p>
                               <p className="text-[10px] text-muted">{cust.phone}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatRupiah(cust.totalSpent)}</p>
-                            <p className="text-[10px] text-muted">{cust.transactionCount} Transaksi</p>
+                            <p className="text-sm font-bold text-green-600 dark:text-green-400">{formatRupiah(cust.yearlyAmount)}</p>
+                            <p className="text-[10px] text-muted">{cust.yearlyQty || 0} Unit (Loyal)</p>
                           </div>
                         </div>
                       ))}

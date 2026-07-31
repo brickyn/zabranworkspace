@@ -83,9 +83,12 @@ export default function UsersPage() {
     e.preventDefault();
     setFormLoading(true);
     try {
-      const payload = { ...formData };
+      const payload: any = { 
+        ...formData,
+        branchId: (formData.branchId && formData.branchId.trim() !== '') ? formData.branchId : null
+      };
       if (selectedUser && !payload.password) {
-        delete (payload as any).password;
+        delete payload.password;
       }
       
       if (selectedUser) {
@@ -221,7 +224,7 @@ export default function UsersPage() {
                   <div className="space-y-1.5">
                     <label className="text-sm text-muted ml-1">Access Level (Role)</label>
                     <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full px-4 py-2.5 bg-glass-bg border border-glass-border rounded-xl text-foreground focus:border-blue-500 outline-none transition-all appearance-none">
-                      {['Super Admin', 'Management', 'Admin', 'Manager', 'User'].map(r => (
+                      {['Super Admin', 'Management', 'Admin', 'Manager', 'CRM', 'CRM Staff', 'CRM Manager', 'Finance', 'B2B', 'BSB', 'Warehouse', 'Leader', 'Cashier', 'User'].map(r => (
                         <option key={r} value={r}>{r}</option>
                       ))}
                     </select>

@@ -64,7 +64,11 @@ const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   Leader: ['POS.View', 'POS.Create', 'POS.Void', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'CRM.View'],
   Manager: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View'],
   Management: ['Dashboard.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit', 'Inventory.Delete', 'Laporan.View', 'B2B.View', 'BSB.View', 'CRM.View', 'Finance.View', 'Users.View'],
-  Finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit']
+  Finance: ['Dashboard.View', 'Finance.View', 'Laporan.View', 'Inventory.View', 'Inventory.Create', 'Inventory.Edit'],
+  CRM: ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard'],
+  'CRM Staff': ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard'],
+  'CRM Admin': ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard'],
+  'CRM Manager': ['Dashboard.View', 'CRM.View', 'CRM', 'Dashboard']
 };
 
 export const requirePermission = (permission: string) => {
