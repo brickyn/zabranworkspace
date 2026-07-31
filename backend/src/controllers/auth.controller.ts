@@ -156,7 +156,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         permissions: compiledPermissions
       }, 
       JWT_SECRET, 
-      { expiresIn: '24h' }
+      { expiresIn: '12h' }
     );
 
     res.json({

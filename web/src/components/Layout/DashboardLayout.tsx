@@ -215,12 +215,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     setIsMounted(true);
     const userData = localStorage.getItem('user');
     const loginTime = localStorage.getItem('loginTimestamp');
-    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
 
     if (userData) {
-      // Proactive 24-hour session expiry check
-      if (loginTime && (Date.now() - Number(loginTime) > TWENTY_FOUR_HOURS)) {
-        toast.error('Sesi login Anda telah berakhir (24 Jam). Silakan login kembali.');
+      // Proactive 12-hour session expiry check
+      if (loginTime && (Date.now() - Number(loginTime) > TWELVE_HOURS)) {
+        toast.error('Sesi login Anda telah berakhir (12 Jam). Silakan login kembali.');
         handleLogout();
         return;
       }
